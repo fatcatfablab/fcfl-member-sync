@@ -1,0 +1,14 @@
+syntax = "proto3";
+package members;
+
+option go_package = "github.com/miquelruiz/proto/memberspb";
+
+message MemberList {
+    repeated Member members = 1;
+}
+
+message Member {
+    string first_name = 1;
+    string last_name = 2;
+    string card_id = 3;
+}
