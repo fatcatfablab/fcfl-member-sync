@@ -16,30 +16,32 @@ import (
 
 var (
 	addr = flag.String("addr", "localhost:50051", "address to connect to")
+	crt  = flag.String("crt", "certs/client.crt", "Path to the client certificate")
+	key  = flag.String("key", "certs/client.key", "Path to the client private key")
+	ca   = flag.String("ca", "certs/root_ca.crt", "Path to the CA root certificate")
 )
 
 func main() {
 	flag.Parse()
 
-	cert, err := tls.LoadX509KeyPair("certs/client.crt", "certs/client.key")
+	cert, err := tls.LoadX509KeyPair(*crt, *key)
 	if err != nil {
 		log.Fatalf("failed to load client cert: %v", err)
 	}
 
-	ca := x509.NewCertPool()
-	caFilePath := "certs/root_ca.crt"
-	caBytes, err := os.ReadFile(caFilePath)
+	certPool := x509.NewCertPool()
+	caBytes, err := os.ReadFile(*ca)
 	if err != nil {
-		log.Fatalf("error reading ca %q: %v", caFilePath, err)
+		log.Fatalf("error reading ca %q: %v", *ca, err)
 	}
-	if !ca.AppendCertsFromPEM(caBytes) {
-		log.Fatalf("failed to parse %q", caFilePath)
+	if !certPool.AppendCertsFromPEM(caBytes) {
+		log.Fatalf("failed to parse %q", *ca)
 	}
 
 	tlsConfig := &tls.Config{
 		ServerName:   "localhost",
 		Certificates: []tls.Certificate{cert},
-		RootCAs:      ca,
+		RootCAs:      certPool,
 	}
 
 	conn, err := grpc.NewClient(*addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))

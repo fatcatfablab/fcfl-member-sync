@@ -17,6 +17,9 @@ import (
 
 var (
 	port = flag.Int("port", 50051, "The server port")
+	crt  = flag.String("crt", "certs/server.crt", "Path to the server certificate")
+	key  = flag.String("key", "certs/server.key", "Path to the server private key")
+	ca   = flag.String("ca", "certs/root_ca.crt", "Path to CA root certificate")
 )
 
 type server struct {
@@ -32,25 +35,24 @@ func main() {
 	log.Println("Oh, hai!")
 	flag.Parse()
 
-	cert, err := tls.LoadX509KeyPair("certs/server.crt", "certs/server.key")
+	cert, err := tls.LoadX509KeyPair(*crt, *key)
 	if err != nil {
 		log.Fatalf("error loading certs: %v", err)
 	}
 
-	ca := x509.NewCertPool()
-	caFilePath := "certs/root_ca.crt"
-	caBytes, err := os.ReadFile(caFilePath)
+	certPool := x509.NewCertPool()
+	caBytes, err := os.ReadFile(*ca)
 	if err != nil {
-		log.Fatalf("error reading %q: %v", caFilePath, err)
+		log.Fatalf("error reading %q: %v", *ca, err)
 	}
-	if !ca.AppendCertsFromPEM(caBytes) {
+	if !certPool.AppendCertsFromPEM(caBytes) {
 		log.Fatalf("error adding CA to pool")
 	}
 
 	tlsConfig := &tls.Config{
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		Certificates: []tls.Certificate{cert},
-		ClientCAs:    ca,
+		ClientCAs:    certPool,
 	}
 
 	s := grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)))
