@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"flag"
 	"log"
+	"net/url"
 	"os"
 	"time"
 
@@ -38,13 +39,14 @@ func main() {
 		log.Fatalf("failed to parse %q", *ca)
 	}
 
+	serverUrl := url.URL{Host: *addr}
 	tlsConfig := &tls.Config{
-		ServerName:   "localhost",
+		ServerName:   serverUrl.Hostname(),
 		Certificates: []tls.Certificate{cert},
 		RootCAs:      certPool,
 	}
 
-	conn, err := grpc.NewClient(*addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	conn, err := grpc.NewClient(serverUrl.Host, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	if err != nil {
 		log.Fatalf("couldn't connect: %v", err)
 	}
