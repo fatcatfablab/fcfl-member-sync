@@ -61,5 +61,8 @@ func main() {
 		log.Fatalf("request failed: %v", err)
 	}
 
-	log.Printf("%v", r.GetMembers())
+	log.Printf("Members: %d", len(r.GetMembers()))
+	for _, member := range r.GetMembers() {
+		log.Printf("%v", member)
+	}
 }
