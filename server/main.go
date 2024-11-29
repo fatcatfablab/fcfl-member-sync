@@ -30,12 +30,16 @@ type server struct {
 
 func (s *server) List(ctx context.Context, _ *pb.Empty) (*pb.MemberList, error) {
 	log.Print("List called")
-	return userlist.List(ctx, *dsn)
+	return userlist.List(ctx)
 }
 
 func main() {
 	log.Println("Oh, hai!")
 	flag.Parse()
+
+	if err := userlist.Init(*dsn); err != nil {
+		log.Fatalf("error initializing userlist module: %v", err)
+	}
 
 	cert, err := tls.LoadX509KeyPair(*crt, *key)
 	if err != nil {

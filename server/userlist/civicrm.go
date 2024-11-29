@@ -31,18 +31,34 @@ var (
 		WHERE m.status_id < 4
 		ORDER BY co.id;
 	`
+	initialized = false
 )
 
-func List(ctx context.Context, dsn string) (*pb.MemberList, error) {
-	log.Printf("dsn: %q\n", dsn)
-	db, err := sql.Open("mysql", dsn)
+func Init(dsn string) error {
+	log.Printf("Setting up db connection")
+
+	var err error
+	db, err = sql.Open("mysql", dsn)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't connect to db: %w", err)
+		return fmt.Errorf("couldn't connect to db: %w", err)
 	}
 
 	db.SetConnMaxLifetime(1 * time.Minute)
 	db.SetMaxOpenConns(5)
 	db.SetMaxIdleConns(5)
+
+	err = db.Ping()
+	if err != nil {
+		return fmt.Errorf("couldn't ping db: %w", err)
+	}
+	initialized = true
+	return nil
+}
+
+func List(ctx context.Context) (*pb.MemberList, error) {
+	if !initialized {
+		panic("List called before Init")
+	}
 
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
