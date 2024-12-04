@@ -21,7 +21,7 @@ var (
 	crt  = flag.String("crt", "certs/server.crt", "Path to the server certificate")
 	key  = flag.String("key", "certs/server.key", "Path to the server private key")
 	ca   = flag.String("ca", "certs/root_ca.crt", "Path to CA root certificate")
-	dsn  = flag.String("dsn", "", "Database DSN")
+	dsn  = flag.String("dsn", os.Getenv("DSN"), "Database DSN")
 )
 
 type server struct {
