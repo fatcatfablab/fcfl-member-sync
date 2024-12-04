@@ -10,7 +10,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/miquelruiz/fcfl-member-sync/client/sync"
 	pb "github.com/miquelruiz/fcfl-member-sync/proto"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -61,8 +63,5 @@ func main() {
 		log.Fatalf("request failed: %v", err)
 	}
 
-	log.Printf("Members: %d", len(r.GetMembers()))
-	for _, member := range r.GetMembers() {
-		log.Printf("%v", member)
-	}
+	sync.Sync(r.GetMembers())
 }
