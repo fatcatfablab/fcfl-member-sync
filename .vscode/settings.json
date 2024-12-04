@@ -1,3 +1,4 @@
 {
-    "go.buildTags": "civicrm"
+    "go.buildTags": "civicrm",
+    "makefile.configureOnOpen": false
 }

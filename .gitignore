@@ -1,3 +1,5 @@
+.env
+bin/
 certs/
 fcfl-member-sync-server
 fcfl-member-sync-client
