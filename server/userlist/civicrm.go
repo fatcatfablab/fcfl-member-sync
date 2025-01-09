@@ -84,6 +84,7 @@ func List(ctx context.Context) (*pb.MemberList, error) {
 		if cardId != nil {
 			m.CardId = *cardId
 		}
+		m.Id = int32(id)
 		res.Members = append(res.Members, &m)
 	}
 

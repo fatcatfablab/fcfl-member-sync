@@ -1,5 +1,5 @@
 {
-    "go.buildTags": "civicrm",
+    "go.buildTags": "civicrm,stdout",
     "makefile.configureOnOpen": false,
     "go.useLanguageServer": true,
     "gopls": {
