@@ -1,5 +1,5 @@
 {
-    "go.buildTags": "civicrm,stdout",
+    "go.buildTags": "civicrm,unifiaccess",
     "makefile.configureOnOpen": false,
     "go.useLanguageServer": true,
     "gopls": {

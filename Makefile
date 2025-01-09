@@ -72,7 +72,7 @@ GOFILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path
 GOPACKAGES = $(shell $(GO) list ./... | grep -v /vendor/)
 
 # Build Configuration
-BUILD_TAGS ?= civicrm stdout
+BUILD_TAGS ?= civicrm unifiaccess
 EXTRA_TAGS ?=
 ALL_TAGS = $(BUILD_TAGS) $(EXTRA_TAGS)
 
