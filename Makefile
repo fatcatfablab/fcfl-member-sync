@@ -233,6 +233,7 @@ generate: ## Run code generation
 test: ## Run tests
 	$(INFO) Running tests...
 	$(GO) test $(TEST_FLAGS) \
+		-tags '$(ALL_TAGS)' \
 		-timeout $(TEST_TIMEOUT) \
 		-run '$(TEST_PATTERN)' \
 		$(if $(SKIP_PATTERN),-skip '$(SKIP_PATTERN)') \
