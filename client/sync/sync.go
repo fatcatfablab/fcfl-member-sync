@@ -2,6 +2,8 @@ package sync
 
 import (
 	"log"
+	"maps"
+	"slices"
 
 	"github.com/miquelruiz/fcfl-member-sync/client/types"
 )
@@ -34,6 +36,7 @@ func Reconcile(remote, local MemberSet, u updater) error {
 		} else {
 			add.Add(m)
 		}
+		localIds[m.Id] = m
 	}
 
 	if !update.IsEmpty() {
@@ -50,9 +53,10 @@ func Reconcile(remote, local MemberSet, u updater) error {
 		}
 	}
 
+	local = types.NewMemberSet(slices.Collect(maps.Values(localIds))...)
 	extra := local.Difference(remote)
-	log.Printf("Members to disable: %d", extra.Cardinality())
 	if !extra.IsEmpty() {
+		log.Printf("Members to disable: %d", extra.Cardinality())
 		if err := u.Disable(extra); err != nil {
 			log.Printf("error disabling members: %s", err)
 		}
