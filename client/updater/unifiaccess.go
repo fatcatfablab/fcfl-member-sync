@@ -10,6 +10,11 @@ import (
 	"github.com/miquelruiz/go-unifi-access-api/schema"
 )
 
+var (
+	deactivated = "DEACTIVATED"
+	active      = "ACTIVE"
+)
+
 type memberSet = types.MemberSet
 
 type UAUpdater struct {
@@ -36,6 +41,7 @@ func (u *UAUpdater) List() (memberSet, error) {
 		members.Add(types.ComparableMember{
 			FirstName: user.FirstName,
 			LastName:  user.LastName,
+			UAId:      user.Id,
 			Id:        int32(id),
 		})
 	}
@@ -62,8 +68,12 @@ func (u *UAUpdater) Add(members memberSet) error {
 
 func (u *UAUpdater) Disable(members memberSet) error {
 	for m := range members.Iter() {
-		log.Printf("Removing member %v", m)
-		// TODO
+		log.Printf("Disabling member %v", m)
+		u.uaClient.UpdateUser(m.UAId, schema.UserRequest{
+			FirstName: m.FirstName,
+			LastName:  m.LastName,
+			Status:    &deactivated,
+		})
 	}
 
 	return nil
@@ -72,7 +82,13 @@ func (u *UAUpdater) Disable(members memberSet) error {
 func (u *UAUpdater) Update(members memberSet) error {
 	for m := range members.Iter() {
 		log.Printf("Updating member %v", m)
-		// TODO
+		employeeNumber := fmt.Sprintf("%d", m.Id)
+		u.uaClient.UpdateUser(m.UAId, schema.UserRequest{
+			FirstName:      m.FirstName,
+			LastName:       m.LastName,
+			EmployeeNumber: &employeeNumber,
+			Status:         &active,
+		})
 	}
 
 	return nil

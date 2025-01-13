@@ -6,6 +6,7 @@ type (
 	MemberSet        = mapset.Set[ComparableMember]
 	ComparableMember struct {
 		Id        int32
+		UAId      string
 		FirstName string
 		LastName  string
 	}
@@ -21,4 +22,9 @@ func ToIdMap(ms MemberSet) map[int32]ComparableMember {
 
 func NewMemberSet(vals ...ComparableMember) MemberSet {
 	return mapset.NewSet(vals...)
+}
+
+func (cm ComparableMember) SetUAId(uaid string) ComparableMember {
+	cm.UAId = uaid
+	return cm
 }
