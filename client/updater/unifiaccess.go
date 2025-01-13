@@ -50,46 +50,58 @@ func (u *UAUpdater) List() (memberSet, error) {
 }
 
 func (u *UAUpdater) Add(members memberSet) error {
+	var err, reterror error
 	for m := range members.Iter() {
 		log.Printf("Adding member %v", m)
 		id := fmt.Sprintf("%d", m.Id)
-		_, err := u.uaClient.CreateUser(schema.UserRequest{
+		_, err = u.uaClient.CreateUser(schema.UserRequest{
 			FirstName:      m.FirstName,
 			LastName:       m.LastName,
 			EmployeeNumber: &id,
 		})
 		if err != nil {
 			log.Printf("Skipping due to failure: %v", err)
+			reterror = err
 		}
 	}
 
-	return nil
+	return reterror
 }
 
 func (u *UAUpdater) Disable(members memberSet) error {
+	var err, reterror error
 	for m := range members.Iter() {
 		log.Printf("Disabling member %v", m)
-		u.uaClient.UpdateUser(m.UAId, schema.UserRequest{
+		err = u.uaClient.UpdateUser(m.UAId, schema.UserRequest{
 			FirstName: m.FirstName,
 			LastName:  m.LastName,
 			Status:    &deactivated,
 		})
+		if err != nil {
+			log.Printf("error disabling member: %s", err)
+			reterror = err
+		}
 	}
 
-	return nil
+	return reterror
 }
 
 func (u *UAUpdater) Update(members memberSet) error {
+	var err, reterror error
 	for m := range members.Iter() {
 		log.Printf("Updating member %v", m)
 		employeeNumber := fmt.Sprintf("%d", m.Id)
-		u.uaClient.UpdateUser(m.UAId, schema.UserRequest{
+		err = u.uaClient.UpdateUser(m.UAId, schema.UserRequest{
 			FirstName:      m.FirstName,
 			LastName:       m.LastName,
 			EmployeeNumber: &employeeNumber,
 			Status:         &active,
 		})
+		if err != nil {
+			log.Printf("error updating member: %s", err)
+			reterror = err
+		}
 	}
 
-	return nil
+	return reterror
 }
