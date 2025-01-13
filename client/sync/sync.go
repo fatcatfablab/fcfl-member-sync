@@ -21,6 +21,8 @@ type updater interface {
 }
 
 func Reconcile(remote, local MemberSet, u updater) error {
+	var err error
+
 	// Extract the UniFi Access ID's from the local member set so it can be
 	// compared with the remote member set, which doesn't have those ID's
 	idMapping := make(map[int32]string)
@@ -54,14 +56,14 @@ func Reconcile(remote, local MemberSet, u updater) error {
 
 	if !update.IsEmpty() {
 		log.Printf("Members to update: %d", update.Cardinality())
-		if err := u.Update(update); err != nil {
+		if err = u.Update(update); err != nil {
 			log.Printf("error updating members: %s", err)
 		}
 	}
 
 	if !add.IsEmpty() {
 		log.Printf("Members to add: %d", add.Cardinality())
-		if err := u.Add(add); err != nil {
+		if err = u.Add(add); err != nil {
 			log.Printf("error adding members: %s", err)
 		}
 	}
@@ -73,10 +75,10 @@ func Reconcile(remote, local MemberSet, u updater) error {
 		newSet := types.NewMemberSet(lo.Map(extra.ToSlice(), func(item Member, _ int) Member {
 			return item.SetUAId(idMapping[item.Id])
 		})...)
-		if err := u.Disable(newSet); err != nil {
+		if err = u.Disable(newSet); err != nil {
 			log.Printf("error disabling members: %s", err)
 		}
 	}
 
-	return nil
+	return err
 }
