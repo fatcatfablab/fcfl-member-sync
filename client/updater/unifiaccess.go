@@ -15,7 +15,11 @@ var (
 	active      = "ACTIVE"
 )
 
-type memberSet = types.MemberSet
+type (
+	memberSet = types.MemberSet
+	member    = types.ComparableMember
+	memberMap = map[string]member
+)
 
 type UAUpdater struct {
 	uaClient *ua.Client
@@ -25,25 +29,24 @@ func New(uaClient *ua.Client) *UAUpdater {
 	return &UAUpdater{uaClient: uaClient}
 }
 
-func (u *UAUpdater) List() (memberSet, error) {
+func (u *UAUpdater) List() (memberMap, error) {
 	users, err := u.uaClient.ListUsers()
 	if err != nil {
 		return nil, err
 	}
 
-	members := types.NewMemberSet()
+	members := make(map[string]member)
 	for _, user := range users {
 		id, err := strconv.ParseInt(user.EmployeeNumber, 0, 32)
 		if err != nil {
 			log.Printf("skipping local user without EmployeeNumber: %s", user.FullName)
 			continue
 		}
-		members.Add(types.ComparableMember{
+		members[user.Id] = member{
 			FirstName: user.FirstName,
 			LastName:  user.LastName,
-			UAId:      user.Id,
 			Id:        int32(id),
-		})
+		}
 	}
 
 	return members, nil
@@ -68,11 +71,11 @@ func (u *UAUpdater) Add(members memberSet) error {
 	return reterror
 }
 
-func (u *UAUpdater) Disable(members memberSet) error {
+func (u *UAUpdater) Disable(members memberMap) error {
 	var err, reterror error
-	for m := range members.Iter() {
+	for id, m := range members {
 		log.Printf("Disabling member %v", m)
-		err = u.uaClient.UpdateUser(m.UAId, schema.UserRequest{
+		err = u.uaClient.UpdateUser(id, schema.UserRequest{
 			FirstName: m.FirstName,
 			LastName:  m.LastName,
 			Status:    &deactivated,
@@ -86,12 +89,12 @@ func (u *UAUpdater) Disable(members memberSet) error {
 	return reterror
 }
 
-func (u *UAUpdater) Update(members memberSet) error {
+func (u *UAUpdater) Update(members memberMap) error {
 	var err, reterror error
-	for m := range members.Iter() {
+	for id, m := range members {
 		log.Printf("Updating member %v", m)
 		employeeNumber := fmt.Sprintf("%d", m.Id)
-		err = u.uaClient.UpdateUser(m.UAId, schema.UserRequest{
+		err = u.uaClient.UpdateUser(id, schema.UserRequest{
 			FirstName:      m.FirstName,
 			LastName:       m.LastName,
 			EmployeeNumber: &employeeNumber,

@@ -6,33 +6,30 @@ import (
 	"slices"
 
 	"github.com/miquelruiz/fcfl-member-sync/client/types"
-	"github.com/samber/lo"
 )
 
 type (
+	MemberMap = types.MemberMap
 	MemberSet = types.MemberSet
 	Member    = types.ComparableMember
 )
 
 type updater interface {
 	Add(MemberSet) error
-	Disable(MemberSet) error
-	Update(MemberSet) error
+	Disable(MemberMap) error
+	Update(MemberMap) error
 }
 
-func Reconcile(remote, local MemberSet, u updater) error {
+func Reconcile(remote MemberSet, localMap MemberMap, u updater) error {
 	var err error
 
-	// Extract the UniFi Access ID's from the local member set so it can be
-	// compared with the remote member set, which doesn't have those ID's
+	// This allows for quick extraction of the UniFi Access ID given the Member id
 	idMapping := make(map[int32]string)
-	localCopy := types.NewMemberSet()
-	for l := range local.Iter() {
-		idMapping[l.Id] = l.UAId
-		localCopy.Add(l.SetUAId(""))
+	for k, v := range localMap {
+		idMapping[v.Id] = k
 	}
-	local = localCopy
 
+	local := types.NewMemberSet(slices.Collect(maps.Values(localMap))...)
 	if local.Equal(remote) {
 		log.Print("Nothing to do")
 		return nil
@@ -40,22 +37,24 @@ func Reconcile(remote, local MemberSet, u updater) error {
 
 	localIds := types.ToIdMap(local)
 	add := types.NewMemberSet()
-	update := types.NewMemberSet()
+	update := make(MemberMap)
 
 	for m := range remote.Difference(local).Iter() {
+		log.Printf("diff: %v", m)
 		// We need to check for the id's in order to know if a member is missing
 		// or if it just needs updating.
 		_, present := localIds[m.Id]
 		if present {
-			update.Add(m.SetUAId(idMapping[m.Id]))
+			update[idMapping[m.Id]] = m
 		} else {
 			add.Add(m)
 		}
 		localIds[m.Id] = m
 	}
+	log.Printf("update: %v", update)
 
-	if !update.IsEmpty() {
-		log.Printf("Members to update: %d", update.Cardinality())
+	if len(update) > 0 {
+		log.Printf("Members to update: %d", len(update))
 		if err = u.Update(update); err != nil {
 			log.Printf("error updating members: %s", err)
 		}
@@ -72,10 +71,11 @@ func Reconcile(remote, local MemberSet, u updater) error {
 	extra := local.Difference(remote)
 	if !extra.IsEmpty() {
 		log.Printf("Members to disable: %d", extra.Cardinality())
-		newSet := types.NewMemberSet(lo.Map(extra.ToSlice(), func(item Member, _ int) Member {
-			return item.SetUAId(idMapping[item.Id])
-		})...)
-		if err = u.Disable(newSet); err != nil {
+		disable := make(MemberMap)
+		for e := range extra.Iter() {
+			disable[idMapping[e.Id]] = e
+		}
+		if err = u.Disable(disable); err != nil {
 			log.Printf("error disabling members: %s", err)
 		}
 	}
