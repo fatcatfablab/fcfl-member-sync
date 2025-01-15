@@ -13,10 +13,10 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set/v2"
-	"github.com/miquelruiz/fcfl-member-sync/client/sync"
-	"github.com/miquelruiz/fcfl-member-sync/client/types"
-	"github.com/miquelruiz/fcfl-member-sync/client/updater"
-	pb "github.com/miquelruiz/fcfl-member-sync/proto"
+	"github.com/fatcatfablab/fcfl-member-sync/client/sync"
+	"github.com/fatcatfablab/fcfl-member-sync/client/types"
+	"github.com/fatcatfablab/fcfl-member-sync/client/updater"
+	pb "github.com/fatcatfablab/fcfl-member-sync/proto"
 	ua "github.com/miquelruiz/go-unifi-access-api"
 
 	"github.com/samber/lo"

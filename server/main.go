@@ -10,8 +10,8 @@ import (
 	"net"
 	"os"
 
-	pb "github.com/miquelruiz/fcfl-member-sync/proto"
-	"github.com/miquelruiz/fcfl-member-sync/server/userlist"
+	pb "github.com/fatcatfablab/fcfl-member-sync/proto"
+	"github.com/fatcatfablab/fcfl-member-sync/server/userlist"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )

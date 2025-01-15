@@ -1,7 +1,7 @@
 syntax = "proto3";
 package members;
 
-option go_package = "github.com/miquelruiz/fcfl-member-sync/proto";
+option go_package = "github.com/fatcatfablab/fcfl-member-sync/proto";
 
 message MemberList {
     repeated Member members = 1;

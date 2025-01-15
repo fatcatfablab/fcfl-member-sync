@@ -11,7 +11,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	pb "github.com/miquelruiz/fcfl-member-sync/proto"
+	pb "github.com/fatcatfablab/fcfl-member-sync/proto"
 )
 
 type queryRow struct {

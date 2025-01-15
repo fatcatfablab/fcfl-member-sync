@@ -3,7 +3,7 @@ package sync
 import (
 	"testing"
 
-	"github.com/miquelruiz/fcfl-member-sync/client/types"
+	"github.com/fatcatfablab/fcfl-member-sync/client/types"
 )
 
 var (

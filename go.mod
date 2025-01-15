@@ -1,4 +1,4 @@
-module github.com/miquelruiz/fcfl-member-sync
+module github.com/fatcatfablab/fcfl-member-sync
 
 go 1.23.3
 

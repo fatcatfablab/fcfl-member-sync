@@ -6,7 +6,7 @@
 # =============================================================================
 # Project Settings
 PROJECT_NAME ?= fcfl-member-sync
-ORGANIZATION ?= miquelruiz
+ORGANIZATION ?= fatcatfablab 
 DESCRIPTION ?= "FatCatFabLab's member syncing facilities"
 MAINTAINER ?= "self@miquelruiz.net"
 
