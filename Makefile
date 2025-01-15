@@ -329,7 +329,7 @@ build-all: $(DIST_DIR) ## Build for all platforms
 			if [[ "$$file" =~ "server" ]]; then \
 				init="-C ../init fcfl-member-sync-server.service"; \
 			fi; \
-			tar -czf "$$file.tar.gz" "$$file" $$init || exit 1; \
+			tar --owner root --group root -czf "$$file.tar.gz" "$$file" $$init || exit 1; \
 			rm -f "$$file"; \
 		fi \
 	done
