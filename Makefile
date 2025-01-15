@@ -21,7 +21,6 @@ ENABLE_BUILD_CACHE ?= true
 # Project Structure
 PROJECT_TYPE ?= basic # basic, monorepo, microservices
 MONOREPO_SERVICES ?= $(wildcard services/*)
-#BUILD_TARGETS ?= $(if $(filter monorepo,$(PROJECT_TYPE)),$(MONOREPO_SERVICES),$(PROJECT_NAME))
 BUILD_TARGETS ?= client server
 
 # Version Control
@@ -55,6 +54,7 @@ GODOC ?= $(GOBIN)/godoc
 GOVULNCHECK ?= $(GOBIN)/govulncheck
 MOCKGEN ?= $(GOBIN)/mockgen
 AIR ?= $(GOBIN)/air
+SHELL = /bin/bash
 
 # Directories
 ROOT_DIR ?= .
@@ -306,6 +306,7 @@ security: ## Run security checks
 .PHONY: build-all
 build-all: $(DIST_DIR) ## Build for all platforms
 	$(WORKING) Building for all platforms...
+	@rm -Rf $(DIST_DIR)/*
 	@$(foreach target,$(BUILD_TARGETS),\
 		$(foreach platform,$(PLATFORMS),\
 			$(eval OS := $(word 1,$(subst /, ,$(platform)))) \
@@ -324,7 +325,11 @@ build-all: $(DIST_DIR) ## Build for all platforms
 	@cd $(DIST_DIR) && \
 	for file in $(PROJECT_NAME)-* ; do \
 		if [ -f "$$file" ]; then \
-			tar czf "$$file.tar.gz" "$$file" || exit 1; \
+			init=""; \
+			if [[ "$$file" =~ "server" ]]; then \
+				init="-C ../init fcfl-member-sync-server.service"; \
+			fi; \
+			tar -czf "$$file.tar.gz" "$$file" $$init || exit 1; \
 			rm -f "$$file"; \
 		fi \
 	done
