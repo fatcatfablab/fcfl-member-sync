@@ -5,6 +5,7 @@ After = network.target
 [Service]
 Type = simple
 TimeoutStopSec = 20
+WorkingDirectory = /opt/fcfl-member-sync-server
 EnvironmentFile = /opt/fcfl-member-sync-server/.env
 ExecStart = /opt/fcfl-member-sync-server/fcfl-member-sync --port 19999
 Restart = always
