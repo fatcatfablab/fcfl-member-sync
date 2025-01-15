@@ -1,0 +1,9 @@
+[Unit]
+Description = fcfl-member-sync-client
+After = network.target
+
+[Service]
+Type = oneshot
+WorkingDirectory = /opt/fcfl-member-sync-client
+EnvironmentFile = /opt/fcfl-member-sync-client/.env
+ExecStart = /opt/fcfl-member-sync-client/fcfl-member-sync
