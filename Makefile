@@ -6,7 +6,7 @@
 # =============================================================================
 # Project Settings
 PROJECT_NAME ?= fcfl-member-sync
-ORGANIZATION ?= fatcatfablab 
+ORGANIZATION ?= fatcatfablab
 DESCRIPTION ?= "FatCatFabLab's member syncing facilities"
 MAINTAINER ?= "self@miquelruiz.net"
 
@@ -110,13 +110,9 @@ SKIP_PATTERN ?=
 
 # Cross-Compilation Targets
 PLATFORMS ?= \
-    linux/amd64/- \
-    linux/arm64/- \
-    linux/arm/7 \
-    darwin/amd64/- \
-    darwin/arm64/- \
-    windows/amd64/- \
-    windows/arm64/-
+    linux/amd64 \
+    linux/arm64 \
+    linux/arm/7
 
 # =============================================================================
 # 🎨 Terminal Colors & Emoji
@@ -310,17 +306,19 @@ security: ## Run security checks
 .PHONY: build-all
 build-all: $(DIST_DIR) ## Build for all platforms
 	$(WORKING) Building for all platforms...
-	@$(foreach platform,$(PLATFORMS),\
-		$(eval OS := $(word 1,$(subst /, ,$(platform)))) \
-		$(eval ARCH := $(word 2,$(subst /, ,$(platform)))) \
-		$(eval ARM := $(word 3,$(subst /, ,$(platform)))) \
-		$(WORKING) Building for $(OS)/$(ARCH)$(if $(ARM),/v$(ARM))... && \
-		GOOS=$(OS) GOARCH=$(ARCH) $(if $(ARM),GOARM=$(ARM)) \
-		CGO_ENABLED=$(CGO_ENABLED) \
-		$(GO) build -tags '$(ALL_TAGS)' \
-			-ldflags '$(LD_FLAGS)' \
-			-o $(DIST_DIR)/$(PROJECT_NAME)-$(OS)-$(ARCH)$(if $(ARM),v$(ARM))$(if $(findstring windows,$(OS)),.exe,) \
-			./cmd/$(PROJECT_NAME) ; \
+	@$(foreach target,$(BUILD_TARGETS),\
+		$(foreach platform,$(PLATFORMS),\
+			$(eval OS := $(word 1,$(subst /, ,$(platform)))) \
+			$(eval ARCH := $(word 2,$(subst /, ,$(platform)))) \
+			$(eval ARM := $(word 3,$(subst /, ,$(platform)))) \
+			echo "🔨 Building $(target) for $(OS)/$(ARCH)$(if $(ARM),/v$(ARM))..." && \
+			GOOS=$(OS) GOARCH=$(ARCH) $(if $(ARM),GOARM=$(ARM)) \
+			CGO_ENABLED=$(CGO_ENABLED) \
+			$(GO) build -tags '$(ALL_TAGS)' \
+				-ldflags '$(LD_FLAGS)' \
+				-o $(DIST_DIR)/$(PROJECT_NAME)-$(target)-$(OS)-$(ARCH)$(if $(ARM),v$(ARM))$(if $(findstring windows,$(OS)),.exe,) \
+				./$(target); \
+		) \
 	)
 	$(PACKAGE) Creating release archives...
 	@cd $(DIST_DIR) && \
