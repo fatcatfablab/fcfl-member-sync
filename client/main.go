@@ -26,12 +26,12 @@ import (
 )
 
 var (
-	addr = flag.String("addr", "localhost:50051", "address to connect to")
+	addr = flag.String("addr", os.Getenv("FCFL_CRM_ADDR"), "address to connect to")
 	crt  = flag.String("crt", "certs/client.crt", "Path to the client certificate")
 	key  = flag.String("key", "certs/client.key", "Path to the client private key")
 	ca   = flag.String("ca", "certs/root_ca.crt", "Path to the CA root certificate")
 
-	uaHost  = flag.String("uaHost", "", "Hostname or IP of the UniFi Access endpoint")
+	uaHost  = flag.String("uaHost", os.Getenv("UA_HOST"), "Hostname or IP of the UniFi Access endpoint")
 	uaToken = flag.String("token", os.Getenv("UA_TOKEN"), "Auth token for the UniFi Access API")
 )
 
