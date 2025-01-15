@@ -1,0 +1,13 @@
+[Unit]
+Description = fcfl-member-sync-server
+After = network.target
+
+[Service]
+Type = simple
+TimeoutStopSec = 20
+EnvironmentFile = /opt/fcfl-member-sync-server/.env
+ExecStart = /opt/fcfl-member-sync-server/fcfl-member-sync --port 19999
+Restart = always
+
+[Install]
+WantedBy = multi-user.target
