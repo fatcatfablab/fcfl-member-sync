@@ -10,6 +10,7 @@ import (
 
 	"github.com/fatcatfablab/fcfl-member-sync/client/types"
 
+	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -33,6 +34,23 @@ var (
 		FirstName: "m4",
 		Id:        4,
 		Status:    types.StatusActive,
+	}
+
+	d1 = Member{
+		FirstName: "m1",
+		Id:        1,
+		Status:    types.StatusDeactivated,
+	}
+	d2 = Member{
+		FirstName: "m2",
+		Id:        2,
+		Status:    types.StatusDeactivated,
+	}
+
+	x1 = Member{
+		FirstName: "x1",
+		Id:        101,
+		Status:    types.StatusDeactivated,
 	}
 )
 
@@ -68,13 +86,16 @@ func (u *mockUpdater) Update(m MemberMap) error {
 		u.t.Errorf("unexpected update: %v", m)
 	}
 	if m != nil && u.update != nil && !types.Equal(m, u.update) {
+		log.Printf("want: %+v", u.update)
+		log.Printf("got:  %+v", m)
 		u.t.Errorf("member map to update does not match")
 	}
 	return nil
 }
 
 type SQLiteUpdater struct {
-	db *sql.DB
+	db    *sql.DB
+	UUIDs map[int32]string
 }
 
 func NewSQLiteUpdater(path string) (*SQLiteUpdater, error) {
@@ -83,7 +104,7 @@ func NewSQLiteUpdater(path string) (*SQLiteUpdater, error) {
 		return nil, fmt.Errorf("error opening database: %w", err)
 	}
 
-	return &SQLiteUpdater{db: db}, nil
+	return &SQLiteUpdater{db: db, UUIDs: make(map[int32]string)}, nil
 }
 
 func (s *SQLiteUpdater) Init(m MemberMap) error {
@@ -113,7 +134,7 @@ func (s *SQLiteUpdater) Init(m MemberMap) error {
 	}
 
 	for id, member := range m {
-		stmt.Exec(id, member.FirstName, member.LastName, strconv.Itoa(int(member.Id)))
+		stmt.Exec(id, member.FirstName, member.LastName, member.Id)
 	}
 
 	return tx.Commit()
@@ -146,15 +167,17 @@ func (s *SQLiteUpdater) Add(m MemberSet) error {
 	}
 
 	stmt, err := tx.Prepare(
-		`INSERT INTO members (first_name, last_name, employee_id, status) ` +
-			`VALUES (?, ?, ?, "ACTIVE")`,
+		`INSERT INTO members (id, first_name, last_name, employee_id, status) ` +
+			`VALUES (?, ?, ?, ?, "ACTIVE")`,
 	)
 	if err != nil {
 		return fmt.Errorf("error preparing member insert: %w", err)
 	}
 
 	for member := range m.Iter() {
-		stmt.Exec(member.FirstName, member.LastName, strconv.Itoa(int(member.Id)))
+		u := uuid.New().String()
+		stmt.Exec(u, member.FirstName, member.LastName, member.Id)
+		s.UUIDs[member.Id] = u
 	}
 
 	return tx.Commit()
@@ -217,9 +240,9 @@ func TestReconcile(t *testing.T) {
 		},
 		{
 			name:       "Member gets updated",
-			remote:     types.NewMemberSet([]Member{m1, m2, {Id: 3, FirstName: "xx"}}...),
+			remote:     types.NewMemberSet([]Member{m1, m2, {Id: 3, FirstName: "xx", Status: types.StatusActive}}...),
 			local:      MemberMap{"uaid1": m1, "uaid2": m2, "uaid3": m3},
-			wantUpdate: MemberMap{"uaid3": {Id: 3, FirstName: "xx"}},
+			wantUpdate: MemberMap{"uaid3": {Id: 3, FirstName: "xx", Status: types.StatusActive}},
 		},
 		{
 			name:        "Member gets disabled",
@@ -230,10 +253,21 @@ func TestReconcile(t *testing.T) {
 		{
 			name:        "Multiple operations",
 			remote:      types.NewMemberSet([]Member{m1, m2, m4}...),
-			local:       MemberMap{"uaid1": m1, "uaid2": {Id: 2, FirstName: "xx"}, "uaid3": m3},
+			local:       MemberMap{"uaid1": m1, "uaid2": {Id: 2, FirstName: "xx", Status: types.StatusActive}, "uaid3": m3},
 			wantAdd:     types.NewMemberSet([]Member{m4}...),
 			wantDisable: MemberMap{"uaid3": m3},
 			wantUpdate:  MemberMap{"uaid2": m2},
+		},
+		{
+			name:   "Nothing to do with deactivated member",
+			remote: types.NewMemberSet([]Member{m1, m2}...),
+			local:  MemberMap{"uaid1": m1, "uaid2": m2, "uaid101": x1},
+		},
+		{
+			name:       "Disabled member gets updated",
+			remote:     types.NewMemberSet([]Member{m1}...),
+			local:      MemberMap{"uaid1": d1},
+			wantUpdate: MemberMap{"uaid1": m1},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -250,13 +284,98 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+func TestReconcileSQLite(t *testing.T) {
+	u, err := NewSQLiteUpdater(t.TempDir() + "disable-enable-test.sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := u.Init(MemberMap{}); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range []struct {
+		name   string
+		remote MemberSet
+		want   []Member
+	}{
+		{
+			name:   "Nothing to do",
+			remote: types.NewMemberSet(),
+			want:   []Member{},
+		},
+		{
+			name:   "Add a member",
+			remote: types.NewMemberSet([]Member{m1}...),
+			want:   []Member{m1},
+		},
+		{
+			name:   "Add two more members",
+			remote: types.NewMemberSet([]Member{m1, m2, m3}...),
+			want:   []Member{m1, m2, m3},
+		},
+		{
+			name:   "Member gets updated",
+			remote: types.NewMemberSet([]Member{m1, m2, {Id: 3, FirstName: "xx", Status: types.StatusActive}}...),
+			want:   []Member{m1, m2, {Id: 3, FirstName: "xx", Status: types.StatusActive}},
+		},
+		{
+			name:   "Member gets disabled",
+			remote: types.NewMemberSet([]Member{m1, m2}...),
+			want:   []Member{m1, m2, {Id: 3, FirstName: "xx", Status: types.StatusDeactivated}},
+		},
+		{
+			name:   "Nothing to do with member deactivated",
+			remote: types.NewMemberSet([]Member{m1, m2}...),
+			want:   []Member{m1, m2, {Id: 3, FirstName: "xx", Status: types.StatusDeactivated}},
+		},
+		{
+			name:   "Multiple operations",
+			remote: types.NewMemberSet([]Member{{Id: 1, FirstName: "xx", Status: types.StatusActive}, m3, m4}...),
+			want:   []Member{{Id: 1, FirstName: "xx", Status: types.StatusActive}, d2, m3, m4},
+		},
+		{
+			name:   "Everyone active",
+			remote: types.NewMemberSet([]Member{m1, m2, m3, m4}...),
+			want:   []Member{m1, m2, m3, m4},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			local, err := u.List()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if err = Reconcile(tt.remote, local, u); err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := u.List()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			want := make(MemberMap)
+			for _, w := range tt.want {
+				want[u.UUIDs[w.Id]] = w
+			}
+			if !types.Equal(want, got) {
+				log.Printf("want: %+v", want)
+				log.Printf("got:  %+v", got)
+				t.Fatal("want and got differ")
+			}
+		})
+	}
+}
+
 func TestDisableThenEnable(t *testing.T) {
 	local := MemberMap{"uaid1": m1}
 	u, err := NewSQLiteUpdater(t.TempDir() + "disable-enable-test.sqlite")
 	if err != nil {
 		t.Fatal(err)
 	}
-	u.Init(local)
+	if err := u.Init(local); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Run("Disable member", func(t *testing.T) {
 		remote := types.NewMemberSet()
@@ -274,6 +393,8 @@ func TestDisableThenEnable(t *testing.T) {
 		}
 
 		if !types.Equal(want, got) {
+			log.Printf("want: %+v", want)
+			log.Printf("got:  %+v", got)
 			t.Fatal("Disable member didn't work")
 		}
 	})
@@ -295,9 +416,9 @@ func TestDisableThenEnable(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		log.Printf("want: %+v", want)
-		log.Printf("got: %+v", got)
 		if !types.Equal(want, got) {
+			log.Printf("want: %+v", want)
+			log.Printf("got:  %+v", got)
 			t.Fatal("Re-enabling member didn't work")
 		}
 	})

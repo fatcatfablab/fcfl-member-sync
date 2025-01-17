@@ -69,13 +69,17 @@ func Reconcile(remote MemberSet, localMap MemberMap, u updater) error {
 	local = types.NewMemberSet(slices.Collect(maps.Values(localIds))...)
 	extra := local.Difference(remote)
 	if !extra.IsEmpty() {
-		log.Printf("Members to disable: %d", extra.Cardinality())
 		disable := make(MemberMap)
 		for e := range extra.Iter() {
-			disable[idMapping[e.Id]] = e
+			if e.Status == types.StatusActive {
+				disable[idMapping[e.Id]] = e
+			}
 		}
-		if err = u.Disable(disable); err != nil {
-			log.Printf("error disabling members: %s", err)
+		if len(disable) > 0 {
+			log.Printf("Members to disable: %d", extra.Cardinality())
+			if err = u.Disable(disable); err != nil {
+				log.Printf("error disabling members: %s", err)
+			}
 		}
 	}
 
