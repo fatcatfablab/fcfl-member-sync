@@ -51,7 +51,6 @@ func Reconcile(remote MemberSet, localMap MemberMap, u updater) error {
 		}
 		localIds[m.Id] = m
 	}
-	log.Printf("update: %v", update)
 
 	if len(update) > 0 {
 		log.Printf("Members to update: %d", len(update))
