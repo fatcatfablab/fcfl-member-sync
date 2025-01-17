@@ -80,9 +80,17 @@ func getRemoteMembers() (types.MemberSet, error) {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 
-	return mapset.NewSet(lo.Map(remoteMembers.Members, func(m *pb.Member, _ int) types.ComparableMember {
-		return types.ComparableMember{Id: m.Id, FirstName: m.FirstName, LastName: m.LastName}
-	})...), nil
+	return mapset.NewSet(lo.Map(
+		remoteMembers.Members,
+		func(m *pb.Member, _ int) types.ComparableMember {
+			return types.ComparableMember{
+				Id:        m.Id,
+				FirstName: m.FirstName,
+				LastName:  m.LastName,
+				Status:    types.StatusActive, // remote members are always ACTIVE
+			}
+		},
+	)...), nil
 }
 
 func createMembershipConn() (*grpc.ClientConn, error) {

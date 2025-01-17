@@ -39,13 +39,14 @@ func (u *UAUpdater) List() (memberMap, error) {
 	for _, user := range users {
 		id, err := strconv.ParseInt(user.EmployeeNumber, 0, 32)
 		if err != nil {
-			log.Printf("skipping local user without EmployeeNumber: %s", user.FullName)
+			log.Printf("skipping user without EmployeeNumber: %s", user.FullName)
 			continue
 		}
 		members[user.Id] = member{
 			FirstName: user.FirstName,
 			LastName:  user.LastName,
 			Id:        int32(id),
+			Status:    user.Status,
 		}
 	}
 

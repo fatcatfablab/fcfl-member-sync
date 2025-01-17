@@ -2,12 +2,18 @@ package types
 
 import mapset "github.com/deckarep/golang-set/v2"
 
+const (
+	StatusActive      = "ACTIVE"
+	StatusDeactivated = "DEACTIVATED"
+)
+
 type (
 	MemberSet        = mapset.Set[ComparableMember]
 	ComparableMember struct {
 		Id        int32
 		FirstName string
 		LastName  string
+		Status    string
 	}
 	MemberMap = map[string]ComparableMember
 )
