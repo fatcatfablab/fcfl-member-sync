@@ -21,7 +21,7 @@ ENABLE_BUILD_CACHE ?= true
 # Project Structure
 PROJECT_TYPE ?= basic # basic, monorepo, microservices
 MONOREPO_SERVICES ?= $(wildcard services/*)
-BUILD_TARGETS ?= cmd/client cmd/server
+BUILD_TARGETS ?= cmd/client cmd/server cmd/report
 
 # Version Control
 VERSION_STRATEGY ?= git # git, semver, date
@@ -99,7 +99,7 @@ DOCKER_BUILD_CONTEXT ?= .
 
 # Test Configuration
 TEST_TIMEOUT ?= 5m
-TEST_FLAGS ?= -v -race -cover
+TEST_FLAGS ?= -race -cover
 COVERAGE_OUT ?= coverage.out
 COVERAGE_HTML ?= coverage.html
 COVERAGE_THRESHOLD ?= 80
@@ -111,7 +111,6 @@ SKIP_PATTERN ?=
 # Cross-Compilation Targets
 PLATFORMS ?= \
     linux/amd64 \
-    linux/arm64 \
     linux/arm/7
 
 # =============================================================================
@@ -312,12 +311,13 @@ build-all: $(DIST_DIR) ## Build for all platforms
 			$(eval OS := $(word 1,$(subst /, ,$(platform)))) \
 			$(eval ARCH := $(word 2,$(subst /, ,$(platform)))) \
 			$(eval ARM := $(word 3,$(subst /, ,$(platform)))) \
+			$(eval NAME := $(word 2,$(subst /, ,$(target)))) \
 			echo "🔨 Building $(target) for $(OS)/$(ARCH)$(if $(ARM),/v$(ARM))..." && \
 			GOOS=$(OS) GOARCH=$(ARCH) $(if $(ARM),GOARM=$(ARM)) \
 			CGO_ENABLED=$(CGO_ENABLED) \
 			$(GO) build -tags '$(ALL_TAGS)' \
 				-ldflags '$(LD_FLAGS)' \
-				-o $(DIST_DIR)/$(PROJECT_NAME)-$(target)-$(OS)-$(ARCH)$(if $(ARM),v$(ARM))$(if $(findstring windows,$(OS)),.exe,) \
+				-o $(DIST_DIR)/$(PROJECT_NAME)-$(NAME)-$(OS)-$(ARCH)$(if $(ARM),v$(ARM))$(if $(findstring windows,$(OS)),.exe,) \
 				./$(target); \
 		) \
 	)
