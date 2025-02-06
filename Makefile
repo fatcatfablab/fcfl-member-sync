@@ -21,7 +21,7 @@ ENABLE_BUILD_CACHE ?= true
 # Project Structure
 PROJECT_TYPE ?= basic # basic, monorepo, microservices
 MONOREPO_SERVICES ?= $(wildcard services/*)
-BUILD_TARGETS ?= client server
+BUILD_TARGETS ?= cmd/client cmd/server
 
 # Version Control
 VERSION_STRATEGY ?= git # git, semver, date
