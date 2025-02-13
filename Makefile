@@ -24,19 +24,11 @@ MONOREPO_SERVICES ?= $(wildcard services/*)
 BUILD_TARGETS ?= cmd/client cmd/server cmd/report
 
 # Version Control
-VERSION_STRATEGY ?= git # git, semver, date
-VERSION := $(shell \
-    if [ "$(VERSION_STRATEGY)" = "git" ] && git rev-parse --git-dir > /dev/null 2>&1; then \
-        git describe --tags --always --dirty 2>/dev/null || echo "dev"; \
-    elif [ "$(VERSION_STRATEGY)" = "semver" ]; then \
-        cat VERSION 2>/dev/null || echo "0.1.0"; \
-    else \
-        date -u '+%Y%m%d-%H%M%S'; \
-    fi)
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 GIT_COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
-BUILD_BY ?= $(shell whoami)
+BUILT_BY ?= $(shell whoami)
 
 # Go Configuration
 GO ?= go
@@ -78,11 +70,11 @@ ALL_TAGS = $(BUILD_TAGS) $(EXTRA_TAGS)
 
 # Linker Flags
 LD_FLAGS += -s -w
-LD_FLAGS += -X '$(shell go list -m)/pkg/version.Version=$(VERSION)'
-LD_FLAGS += -X '$(shell go list -m)/pkg/version.Commit=$(GIT_COMMIT)'
-LD_FLAGS += -X '$(shell go list -m)/pkg/version.Branch=$(GIT_BRANCH)'
-LD_FLAGS += -X '$(shell go list -m)/pkg/version.BuildTime=$(BUILD_TIME)'
-LD_FLAGS += -X '$(shell go list -m)/pkg/version.BuildBy=$(BUILD_BY)'
+LD_FLAGS += -X 'main.Version=$(VERSION)'
+LD_FLAGS += -X 'main.Commit=$(GIT_COMMIT)'
+LD_FLAGS += -X 'main.Branch=$(GIT_BRANCH)'
+LD_FLAGS += -X 'main.BuildTime=$(BUILD_TIME)'
+LD_FLAGS += -X 'main.BuiltBy=$(BUILT_BY)'
 
 # Performance & Debug Flags
 GCFLAGS ?=
@@ -486,12 +478,12 @@ mock: ## Generate mocks
 
 .PHONY: version
 version: ## Display version information
-	@echo "$(CYAN)Version:$(RESET)    $(VERSION)"
-	@echo "$(CYAN)Commit:$(RESET)     $(GIT_COMMIT)"
-	@echo "$(CYAN)Branch:$(RESET)     $(GIT_BRANCH)"
-	@echo "$(CYAN)Built:$(RESET)      $(BUILD_TIME)"
-	@echo "$(CYAN)Built by:$(RESET)   $(BUILD_BY)"
-	@echo "$(CYAN)Go version:$(RESET) $(shell $(GO) version)"
+	@echo -e "$(CYAN)Version:$(RESET)    $(VERSION)"
+	@echo -e "$(CYAN)Commit:$(RESET)     $(GIT_COMMIT)"
+	@echo -e "$(CYAN)Branch:$(RESET)     $(GIT_BRANCH)"
+	@echo -e "$(CYAN)Built:$(RESET)      $(BUILD_TIME)"
+	@echo -e "$(CYAN)Built by:$(RESET)   $(BUILT_BY)"
+	@echo -e "$(CYAN)Go version:$(RESET) $(shell $(GO) version)"
 
 # =============================================================================
 # 📁 Directory Creation
