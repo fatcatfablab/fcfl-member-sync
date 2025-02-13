@@ -23,10 +23,11 @@ type (
 
 type UAUpdater struct {
 	uaClient *ua.Client
+	dryRun   bool
 }
 
-func New(uaClient *ua.Client) *UAUpdater {
-	return &UAUpdater{uaClient: uaClient}
+func New(uaClient *ua.Client, dryRun bool) *UAUpdater {
+	return &UAUpdater{uaClient: uaClient, dryRun: dryRun}
 }
 
 func (u *UAUpdater) List() (memberMap, error) {
@@ -56,13 +57,19 @@ func (u *UAUpdater) List() (memberMap, error) {
 func (u *UAUpdater) Add(members memberSet) error {
 	var err, reterror error
 	for m := range members.Iter() {
-		log.Printf("Adding member %v", m)
+		msg := "Adding member %v"
+		if u.dryRun {
+			msg = "[DRY-RUN] " + msg
+		}
+		log.Printf(msg, m)
 		id := fmt.Sprintf("%d", m.Id)
-		_, err = u.uaClient.CreateUser(schema.UserRequest{
-			FirstName:      m.FirstName,
-			LastName:       m.LastName,
-			EmployeeNumber: &id,
-		})
+		if !u.dryRun {
+			_, err = u.uaClient.CreateUser(schema.UserRequest{
+				FirstName:      m.FirstName,
+				LastName:       m.LastName,
+				EmployeeNumber: &id,
+			})
+		}
 		if err != nil {
 			log.Printf("Skipping due to failure: %v", err)
 			reterror = err
@@ -75,12 +82,18 @@ func (u *UAUpdater) Add(members memberSet) error {
 func (u *UAUpdater) Disable(members memberMap) error {
 	var err, reterror error
 	for id, m := range members {
-		log.Printf("Disabling member %v", m)
-		err = u.uaClient.UpdateUser(id, schema.UserRequest{
-			FirstName: m.FirstName,
-			LastName:  m.LastName,
-			Status:    &deactivated,
-		})
+		msg := "Disabling member %v"
+		if u.dryRun {
+			msg = "[DRY-RUN] " + msg
+		}
+		log.Printf(msg, m)
+		if !u.dryRun {
+			err = u.uaClient.UpdateUser(id, schema.UserRequest{
+				FirstName: m.FirstName,
+				LastName:  m.LastName,
+				Status:    &deactivated,
+			})
+		}
 		if err != nil {
 			log.Printf("error disabling member: %s", err)
 			reterror = err
@@ -93,14 +106,20 @@ func (u *UAUpdater) Disable(members memberMap) error {
 func (u *UAUpdater) Update(members memberMap) error {
 	var err, reterror error
 	for id, m := range members {
-		log.Printf("Updating member %v", m)
+		msg := "Updating member %v"
+		if u.dryRun {
+			msg = "[DRY-RUN] " + msg
+		}
+		log.Printf(msg, m)
 		employeeNumber := fmt.Sprintf("%d", m.Id)
-		err = u.uaClient.UpdateUser(id, schema.UserRequest{
-			FirstName:      m.FirstName,
-			LastName:       m.LastName,
-			EmployeeNumber: &employeeNumber,
-			Status:         &active,
-		})
+		if !u.dryRun {
+			err = u.uaClient.UpdateUser(id, schema.UserRequest{
+				FirstName:      m.FirstName,
+				LastName:       m.LastName,
+				EmployeeNumber: &employeeNumber,
+				Status:         &active,
+			})
+		}
 		if err != nil {
 			log.Printf("error updating member: %s", err)
 			reterror = err

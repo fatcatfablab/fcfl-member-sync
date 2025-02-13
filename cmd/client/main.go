@@ -33,6 +33,8 @@ var (
 
 	uaHost  = flag.String("uaHost", os.Getenv("UA_HOST"), "Hostname or IP of the UniFi Access endpoint")
 	uaToken = flag.String("token", os.Getenv("UA_TOKEN"), "Auth token for the UniFi Access API")
+
+	dryRun = flag.Bool("dry-run", false, "Do not actually make any changes")
 )
 
 func main() {
@@ -48,7 +50,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error creating UniFi Access API client: %s", err)
 	}
-	uniFiUpdater := updater.New(uaClient)
+	uniFiUpdater := updater.New(uaClient, *dryRun)
 
 	remoteMembers, err := getRemoteMembers()
 	if err != nil {
