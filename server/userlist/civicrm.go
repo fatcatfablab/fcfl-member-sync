@@ -27,18 +27,18 @@ var (
 		SELECT co.id, co.first_name, co.last_name, ca.card_id
 		FROM civicrm_contact co
 		JOIN civicrm_membership m ON co.id=m.contact_id
-		JOIN civicrm_accesscard_cards ca on co.id=ca.contact_id
+		LEFT JOIN civicrm_accesscard_cards ca on co.id=ca.contact_id
 		WHERE m.status_id < 4
 		ORDER BY co.id;
 	`
 	initialized = false
 )
 
-func Init(dsn string) error {
+func Init(driver, dsn string) error {
 	log.Printf("Setting up db connection")
 
 	var err error
-	db, err = sql.Open("mysql", dsn)
+	db, err = sql.Open(driver, dsn)
 	if err != nil {
 		return fmt.Errorf("couldn't connect to db: %w", err)
 	}

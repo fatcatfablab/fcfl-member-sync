@@ -16,6 +16,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+const (
+	driver = "mysql"
+)
+
 var (
 	port = flag.Int("port", 50051, "The server port")
 	crt  = flag.String("crt", "certs/server.crt", "Path to the server certificate")
@@ -37,7 +41,7 @@ func main() {
 	log.Println("Oh, hai!")
 	flag.Parse()
 
-	if err := userlist.Init(*dsn); err != nil {
+	if err := userlist.Init(driver, *dsn); err != nil {
 		log.Fatalf("error initializing userlist module: %v", err)
 	}
 
