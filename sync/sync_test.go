@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/fatcatfablab/fcfl-member-sync/client/types"
+	"github.com/fatcatfablab/fcfl-member-sync/types"
 
 	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"

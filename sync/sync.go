@@ -5,7 +5,7 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/fatcatfablab/fcfl-member-sync/client/types"
+	"github.com/fatcatfablab/fcfl-member-sync/types"
 )
 
 type (

@@ -5,7 +5,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/fatcatfablab/fcfl-member-sync/client/types"
+	"github.com/fatcatfablab/fcfl-member-sync/types"
 	ua "github.com/miquelruiz/go-unifi-access-api"
 	"github.com/miquelruiz/go-unifi-access-api/schema"
 )
