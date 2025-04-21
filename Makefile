@@ -21,7 +21,7 @@ ENABLE_BUILD_CACHE ?= true
 # Project Structure
 PROJECT_TYPE ?= basic # basic, monorepo, microservices
 MONOREPO_SERVICES ?= $(wildcard services/*)
-BUILD_TARGETS ?= cmd/client cmd/server cmd/report
+BUILD_TARGETS ?= cmd/client cmd/server cmd/report cmd/webhook
 
 # Version Control
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")

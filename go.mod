@@ -9,6 +9,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/miquelruiz/go-unifi-access-api v0.0.0-20250110051813-148f93b7473a
 	github.com/samber/lo v1.49.1
+	github.com/stripe/stripe-go/v82 v82.0.0
 	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.6
 )
