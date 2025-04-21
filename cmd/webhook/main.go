@@ -1,9 +1,17 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"flag"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 )
 
 const (
@@ -11,9 +19,13 @@ const (
 	maxBodyBytes = int64(65536)
 	civicrmId    = "civicrm_id"
 
+	stripeSignatureHeader = "Stripe-Signature"
+
 	customerCreatedEvent        = "customer.created"
 	customerSubscriptionDeleted = "customer.subscription.deleted"
 )
+
+var stripeEndpointSecret = ""
 
 type Event struct {
 	Type string    `json:"type"`
@@ -34,7 +46,16 @@ type Subscription struct {
 	Metadata map[string]string `json:"metadata"`
 }
 
+func init() {
+	flag.StringVar(&stripeEndpointSecret, "endpoint-secret", os.Getenv("STRIPE_ENDPOINT_SECRET"), "Stripe endpoint secret")
+}
+
 func main() {
+	flag.Parse()
+	if stripeEndpointSecret == "" {
+		panic("No stripe endpoint secret given")
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /stripe_events", webhookHandler)
 
@@ -51,10 +72,22 @@ func main() {
 
 func webhookHandler(w http.ResponseWriter, req *http.Request) {
 	req.Body = http.MaxBytesReader(w, req.Body, maxBodyBytes)
-	j := json.NewDecoder(req.Body)
+	payload, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.Printf("Error copying request body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	signature := req.Header.Get(stripeSignatureHeader)
+	if !verifySignature(payload, signature, stripeEndpointSecret) {
+		log.Printf("Error verifying signature")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	var event Event
-	if err := j.Decode(&event); err != nil {
+	if err := json.Unmarshal(payload, &event); err != nil {
 		log.Printf("Error decoding event: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -93,7 +126,36 @@ func webhookHandler(w http.ResponseWriter, req *http.Request) {
 
 	default:
 		log.Printf("Unhandled event type: %s", event.Type)
+		log.Printf("Payload: %s", string(payload))
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func verifySignature(payload []byte, signature string, secret string) bool {
+	elemMap := make(map[string]string)
+	elemSlice := strings.Split(signature, ",")
+	for _, e := range elemSlice {
+		kv := strings.SplitN(e, "=", 2)
+		elemMap[kv[0]] = kv[1]
+	}
+
+	signedPayload := fmt.Appendf(nil, "%s.%s", elemMap["t"], payload)
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, err := mac.Write(signedPayload)
+	if err != nil {
+		log.Printf("error writing to hmac: %v", err)
+		return false
+	}
+	expectedMAC := mac.Sum(nil)
+
+	v1Header := []byte(elemMap["v1"])
+	actualMAC := make([]byte, hex.DecodedLen(len(v1Header)))
+	_, err = hex.Decode(actualMAC, v1Header)
+	if err != nil {
+		log.Printf("error decoding header: %v", err)
+		return false
+	}
+
+	return hmac.Equal(expectedMAC, actualMAC)
 }
