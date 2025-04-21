@@ -2,14 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
-	"os"
-	"time"
-
-	"github.com/stripe/stripe-go/v82"
-	"github.com/stripe/stripe-go/v82/webhook"
 )
 
 const (
@@ -21,18 +15,23 @@ const (
 	customerSubscriptionDeleted = "customer.subscription.deleted"
 )
 
-type Timestamp struct {
-	time.Time
+type Event struct {
+	Type string    `json:"type"`
+	Data EventData `json:"data"`
 }
 
-func (t *Timestamp) UnmarshalJSON(bytes []byte) error {
-	var raw int64
-	if err := json.Unmarshal(bytes, &raw); err != nil {
-		return err
-	}
+type EventData struct {
+	Raw json.RawMessage `json:"object"`
+}
 
-	t.Time = time.Unix(raw, 0)
-	return nil
+type Customer struct {
+	Name     string            `json:"name"`
+	Email    string            `json:"email"`
+	Metadata map[string]string `json:"metadata"`
+}
+
+type Subscription struct {
+	Metadata map[string]string `json:"metadata"`
 }
 
 func main() {
@@ -44,7 +43,6 @@ func main() {
 		Handler: mux,
 	}
 
-	log.Printf("stripe.APIVersion: %s", stripe.APIVersion)
 	log.Printf("Listening on %s", httpAddr)
 	if err := s.ListenAndServe(); err != nil {
 		panic(err)
@@ -53,25 +51,18 @@ func main() {
 
 func webhookHandler(w http.ResponseWriter, req *http.Request) {
 	req.Body = http.MaxBytesReader(w, req.Body, maxBodyBytes)
-	payload, err := io.ReadAll(req.Body)
-	if err != nil {
-		log.Printf("Error reading request body: %v", err)
-		w.WriteHeader(http.StatusServiceUnavailable)
-		return
-	}
+	j := json.NewDecoder(req.Body)
 
-	endpointSecret := os.Getenv("STRIPE_ENDPOINT_SECRET")
-	event, err := webhook.ConstructEvent(payload, req.Header.Get("Stripe-Signature"), endpointSecret)
-	if err != nil {
-		log.Printf("Error verifying webhook signature: %v", err)
-		log.Printf("Payload: %s", string(payload))
+	var event Event
+	if err := j.Decode(&event); err != nil {
+		log.Printf("Error decoding event: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	switch event.Type {
 	case customerCreatedEvent:
-		var c stripe.Customer
+		var c Customer
 		if err := json.Unmarshal(event.Data.Raw, &c); err != nil {
 			log.Printf("Error parsing webhook JSON: %v", err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -86,7 +77,7 @@ func webhookHandler(w http.ResponseWriter, req *http.Request) {
 		}
 
 	case customerSubscriptionDeleted:
-		var s stripe.Subscription
+		var s Subscription
 		if err := json.Unmarshal(event.Data.Raw, &s); err != nil {
 			log.Printf("Error parsing webhook JSON: %v", err)
 			w.WriteHeader(http.StatusBadRequest)
