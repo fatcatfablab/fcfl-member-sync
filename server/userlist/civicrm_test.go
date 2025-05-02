@@ -23,10 +23,15 @@ const (
 		contact_id INTEGER REFERENCES civicrm_contact (id),
 		status_id INTEGER NOT NULL
 	) STRICT`
-	createAccesscardCards = `CREATE TABLE civicrm_accesscard_cards (
+	createEmail = `CREATE TABLE civicrm_email (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		contact_id INTEGER REFERENCES civicrm_contact (id),
-		card_id INTEGER
+		email TEXT NOT NULL,
+		is_billing INTEGER NOT NULL
+	) STRICT`
+	createStripeCustomers = `CREATE TABLE civicrm_stripe_customers (
+		email TEXT PRIMARY KEY,
+		id TEXT NOT NULL
 	) STRICT`
 )
 
@@ -35,7 +40,8 @@ type dbEntry struct {
 	firstName string
 	lastName  string
 	statusId  int
-	cardId    *int
+	email     string
+	stripeId  string
 }
 
 func initDb(t *testing.T, entries []dbEntry) string {
@@ -46,7 +52,7 @@ func initDb(t *testing.T, entries []dbEntry) string {
 	}
 
 	for _, create := range []string{
-		createContact, createMembership, createAccesscardCards,
+		createContact, createMembership, createEmail, createStripeCustomers,
 	} {
 		_, err = db.Exec(create)
 		if err != nil {
@@ -86,20 +92,23 @@ func insertEntry(db *sql.DB, e dbEntry) error {
 		return err
 	}
 
-	if e.cardId != nil {
-		_, err = db.Exec(
-			`INSERT INTO civicrm_accesscard_cards (contact_id, card_id)
-			VALUES (?, ?)`,
-			e.contactId,
-			*e.cardId,
-		)
+	_, err = db.Exec(
+		`INSERT INTO civicrm_email (contact_id, email, is_billing)
+		VALUES (?, ?, 1)`,
+		e.contactId,
+		e.email,
+	)
+	if err != nil {
+		return err
 	}
 
-	return err
-}
+	_, err = db.Exec(
+		`INSERT INTO civicrm_stripe_customers (email, id) VALUES (?, ?)`,
+		e.email,
+		e.stripeId,
+	)
 
-func intPtr(i int) *int {
-	return &i
+	return err
 }
 
 func cmpMemberLists(want []*pb.Member, got []*pb.Member) bool {
@@ -116,7 +125,7 @@ func cmpMemberLists(want []*pb.Member, got []*pb.Member) bool {
 		if wMap[k].Id != gMap[k].Id ||
 			wMap[k].FirstName != gMap[k].FirstName ||
 			wMap[k].LastName != gMap[k].LastName ||
-			wMap[k].CardId != gMap[k].CardId {
+			wMap[k].StripeId != gMap[k].StripeId {
 			log.Printf("want: %+v", wMap[k])
 			log.Printf("got : %+v", gMap[k])
 			return false
@@ -136,7 +145,7 @@ func toMap(list []*pb.Member) map[int32]pb.Member {
 			Id:        m.Id,
 			FirstName: m.FirstName,
 			LastName:  m.LastName,
-			CardId:    m.CardId,
+			StripeId:  m.StripeId,
 		}
 	}
 
@@ -150,34 +159,37 @@ func TestList(t *testing.T) {
 		want    []*pb.Member
 	}{
 		{
-			name: "Active member with card",
+			name: "Active member",
 			entries: []dbEntry{
-				{contactId: 1, firstName: "firstName", lastName: "lastName", statusId: 2, cardId: intPtr(1234)},
+				{
+					contactId: 1,
+					firstName: "firstName",
+					lastName:  "lastName",
+					statusId:  2,
+					email:     "firstname@lastname.com",
+					stripeId:  "cust_abc",
+				},
 			},
 			want: []*pb.Member{
-				{Id: 1, FirstName: "firstName", LastName: "lastName", CardId: "1234"},
+				{
+					Id:        1,
+					FirstName: "firstName",
+					LastName:  "lastName",
+					StripeId:  "cust_abc",
+				},
 			},
 		},
 		{
-			name: "Active member without card",
+			name: "Inactive member",
 			entries: []dbEntry{
-				{contactId: 1, firstName: "firstName", lastName: "lastName", statusId: 2, cardId: nil},
-			},
-			want: []*pb.Member{
-				{Id: 1, FirstName: "firstName", LastName: "lastName", CardId: ""},
-			},
-		},
-		{
-			name: "Inactive member with card",
-			entries: []dbEntry{
-				{contactId: 1, firstName: "firstName", lastName: "lastName", statusId: 4, cardId: intPtr(1234)},
-			},
-			want: []*pb.Member{},
-		},
-		{
-			name: "Inactive member without card",
-			entries: []dbEntry{
-				{contactId: 1, firstName: "firstName", lastName: "lastName", statusId: 4, cardId: nil},
+				{
+					contactId: 1,
+					firstName: "firstName",
+					lastName:  "lastName",
+					statusId:  4,
+					email:     "firstname@lastname.com",
+					stripeId:  "cust_abc",
+				},
 			},
 			want: []*pb.Member{},
 		},

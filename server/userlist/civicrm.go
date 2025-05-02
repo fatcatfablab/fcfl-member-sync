@@ -24,12 +24,13 @@ type queryRow struct {
 var (
 	db    *sql.DB
 	query = `
-		SELECT co.id, co.first_name, co.last_name, ca.card_id
+		SELECT co.id, co.first_name, co.last_name, s.id
 		FROM civicrm_contact co
 		JOIN civicrm_membership m ON co.id=m.contact_id
-		LEFT JOIN civicrm_accesscard_cards ca on co.id=ca.contact_id
-		WHERE m.status_id < 4
-		ORDER BY co.id;
+		JOIN civicrm_email e on co.id=e.contact_id
+		JOIN civicrm_stripe_customers s on e.email=s.email
+		WHERE m.status_id < 4 AND e.is_billing=1
+		ORDER BY co.id
 	`
 	initialized = false
 )
@@ -68,9 +69,9 @@ func List(ctx context.Context) (*pb.MemberList, error) {
 	res := pb.MemberList{}
 	for rows.Next() {
 		var id int
-		var firstName, lastName, cardId *string
+		var firstName, lastName, stripeId *string
 
-		if err := rows.Scan(&id, &firstName, &lastName, &cardId); err != nil {
+		if err := rows.Scan(&id, &firstName, &lastName, &stripeId); err != nil {
 			return nil, fmt.Errorf("error scanning row: %w", err)
 		}
 
@@ -81,8 +82,8 @@ func List(ctx context.Context) (*pb.MemberList, error) {
 		if lastName != nil {
 			m.LastName = *lastName
 		}
-		if cardId != nil {
-			m.CardId = *cardId
+		if stripeId != nil {
+			m.StripeId = *stripeId
 		}
 		m.Id = int32(id)
 		res.Members = append(res.Members, &m)
