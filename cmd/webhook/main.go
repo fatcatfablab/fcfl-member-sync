@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	stripeEndpointSecret = ""
-	listenAddr           = ""
-	listenEndpoint       = ""
-	dsn                  = ""
+	stripeEndpointSecret string
+	listenAddr           string
+	listenEndpoint       string
+	dsn                  string
+	dryRun               bool
 )
 
 func init() {
@@ -21,6 +22,7 @@ func init() {
 	flag.StringVar(&listenAddr, "listen-address", "127.0.0.1:8081", "Address to listen on")
 	flag.StringVar(&listenEndpoint, "listen-endpoint", "/stripe_events", "Endpoint of the listener")
 	flag.StringVar(&dsn, "dsn", os.Getenv("WEBHOOK_DSN"), "Database connection string")
+	flag.BoolVar(&dryRun, "dry-run", false, "Dry-run mode")
 }
 
 func main() {
@@ -29,7 +31,7 @@ func main() {
 		panic("No database connection string given")
 	}
 
-	d, err := db.New(dsn)
+	d, err := db.New(dsn, dryRun)
 	if err != nil {
 		panic(err)
 	}
