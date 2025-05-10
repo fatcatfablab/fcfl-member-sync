@@ -14,6 +14,10 @@ func verifySignature(payload []byte, signature string, secret string) bool {
 	elemSlice := strings.Split(signature, ",")
 	for _, e := range elemSlice {
 		kv := strings.SplitN(e, "=", 2)
+		if len(kv) != 2 {
+			log.Printf("malformed signature header: %q", signature)
+			return false
+		}
 		elemMap[kv[0]] = kv[1]
 	}
 
