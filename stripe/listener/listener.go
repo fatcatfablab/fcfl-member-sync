@@ -6,8 +6,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 
-	"github.com/fatcatfablab/fcfl-member-sync/stripe/db"
 	"github.com/fatcatfablab/fcfl-member-sync/stripe/types"
 )
 
@@ -19,19 +19,23 @@ const (
 	stripeSignatureHeader = "Stripe-Signature"
 )
 
+type DeletionSaver interface {
+	Save(string, time.Time) error
+}
+
 type Listener struct {
 	secret     string
 	listenAddr string
 	endpoint   string
-	db         *db.DB
+	ds         DeletionSaver
 }
 
-func New(secret, listeAddr, endpoint string, d *db.DB) *Listener {
+func New(secret, listeAddr, endpoint string, d DeletionSaver) *Listener {
 	return &Listener{
 		secret:     secret,
 		listenAddr: listeAddr,
 		endpoint:   endpoint,
-		db:         d,
+		ds:         d,
 	}
 }
 
@@ -78,7 +82,7 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 		err = handleCustomerCreated(event.Data.Raw)
 
 	case customerSubscriptionDeleted:
-		err = handleSubscriptionDeleted(event.Data.Raw)
+		err = handleSubscriptionDeleted(event.Data.Raw, l.ds)
 
 	default:
 		log.Printf("Unhandled event type: %s", event.Type)
@@ -104,14 +108,20 @@ func handleCustomerCreated(rawEvent json.RawMessage) error {
 	return nil
 }
 
-func handleSubscriptionDeleted(rawEvent json.RawMessage) error {
+func handleSubscriptionDeleted(rawEvent json.RawMessage, ds DeletionSaver) error {
 	var s types.Subscription
 	if err := json.Unmarshal(rawEvent, &s); err != nil {
 		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
-	// TODO store the event in db
-	log.Printf("Would mark user for deletion: %v", s)
+	log.Printf("Marking user for deletion: %v", s)
 
-	return nil
+	var t time.Time
+	if s.CancelAt != nil {
+		t = time.Unix(*s.CancelAt, 0)
+	} else {
+		t = time.Now()
+	}
+
+	return ds.Save(s.Customer, t)
 }

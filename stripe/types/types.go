@@ -17,6 +17,20 @@ type Customer struct {
 	Metadata map[string]string `json:"metadata"`
 }
 
+const (
+	SubscriptionIncomplete        = "incomplete"
+	SubscriptionIncompleteExpired = "incomplete_expired"
+	SubscriptionTrialing          = "trialing"
+	SubscriptionActive            = "active"
+	SubscriptionPastDue           = "past_due"
+	SubscriptionCanceled          = "canceled"
+	SubscriptionUnpaid            = "unpaid"
+	SubscriptionPaused            = "paused"
+)
+
 type Subscription struct {
-	Metadata map[string]string `json:"metadata"`
+	Status     string `json:"status"`
+	Customer   string `json:"customer"`
+	CancelAt   *int64 `json:"cancel_at"`
+	CanceledAt *int64 `json:"canceled_at"`
 }
