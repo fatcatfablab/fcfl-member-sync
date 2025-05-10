@@ -75,52 +75,43 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 
 	switch event.Type {
 	case customerCreatedEvent:
-		if err := l.handleCustomerCreated(w, event.Data.Raw); err != nil {
-			log.Printf("Error decoding sub-event: %v", err)
-			return
-		}
+		err = handleCustomerCreated(event.Data.Raw)
 
 	case customerSubscriptionDeleted:
-		if err := l.handleSubscriptionDeleted(w, event.Data.Raw); err != nil {
-			return
-		}
+		err = handleSubscriptionDeleted(event.Data.Raw)
 
 	default:
 		log.Printf("Unhandled event type: %s", event.Type)
 		log.Printf("Payload: %s", string(payload))
 	}
 
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func (l *Listener) handleCustomerCreated(w http.ResponseWriter, rawEvent json.RawMessage) error {
-	_, err := parseRawEvent[types.Customer](w, rawEvent)
-	if err != nil {
-		return err
+func handleCustomerCreated(rawEvent json.RawMessage) error {
+	var c types.Customer
+	if err := json.Unmarshal(rawEvent, &c); err != nil {
+		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
 	// TODO create the user in Access
+	log.Printf("Would create user: %v", c)
 
 	return nil
 }
 
-func (l *Listener) handleSubscriptionDeleted(w http.ResponseWriter, rawEvent json.RawMessage) error {
-	_, err := parseRawEvent[types.Subscription](w, rawEvent)
-	if err != nil {
-		return err
+func handleSubscriptionDeleted(rawEvent json.RawMessage) error {
+	var s types.Subscription
+	if err := json.Unmarshal(rawEvent, &s); err != nil {
+		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
 	// TODO store the event in db
+	log.Printf("Would mark user for deletion: %v", s)
 
 	return nil
-}
-
-func parseRawEvent[T any](w http.ResponseWriter, e json.RawMessage) (*T, error) {
-	var r T
-	if err := json.Unmarshal(e, &r); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return nil, fmt.Errorf("error parsing JSON: %w", err)
-	}
-
-	return &r, nil
 }
