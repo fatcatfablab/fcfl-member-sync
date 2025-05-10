@@ -1,0 +1,14 @@
+[Unit]
+Description = Stripe webhook
+After = network-online.target
+
+[Service]
+Type = simple
+TimeoutStopSec = 20
+WorkingDirectory = /opt/stripe-webhook
+EnvironmentFile = /opt/stripe-webhook/.env
+ExecStart = /opt/stripe-webhook/webhook
+Restart = always
+
+[Install]
+WantedBy = multi-user.target
