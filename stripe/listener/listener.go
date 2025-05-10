@@ -52,6 +52,7 @@ func (l *Listener) Start() error {
 }
 
 func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
+	log.Printf("Request received")
 	req.Body = http.MaxBytesReader(w, req.Body, maxBodyBytes)
 	payload, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -61,8 +62,8 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	signature := req.Header.Get(stripeSignatureHeader)
-	if !verifySignature(payload, signature, l.secret) {
-		log.Printf("Error verifying signature")
+	if err := verifySignature(payload, signature, l.secret); err != nil {
+		log.Printf("Error verifying signature: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

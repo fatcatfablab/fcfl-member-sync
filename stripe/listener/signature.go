@@ -5,18 +5,16 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"strings"
 )
 
-func verifySignature(payload []byte, signature string, secret string) bool {
+func verifySignature(payload []byte, signature string, secret string) error {
 	elemMap := make(map[string]string)
 	elemSlice := strings.Split(signature, ",")
 	for _, e := range elemSlice {
 		kv := strings.SplitN(e, "=", 2)
 		if len(kv) != 2 {
-			log.Printf("malformed signature header: %q", signature)
-			return false
+			return fmt.Errorf("malformed signature header: %q", signature)
 		}
 		elemMap[kv[0]] = kv[1]
 	}
@@ -25,8 +23,7 @@ func verifySignature(payload []byte, signature string, secret string) bool {
 	mac := hmac.New(sha256.New, []byte(secret))
 	_, err := mac.Write(signedPayload)
 	if err != nil {
-		log.Printf("error writing to hmac: %v", err)
-		return false
+		return fmt.Errorf("error writing to hmac: %v", err)
 	}
 	expectedMAC := mac.Sum(nil)
 
@@ -34,9 +31,12 @@ func verifySignature(payload []byte, signature string, secret string) bool {
 	actualMAC := make([]byte, hex.DecodedLen(len(v1Header)))
 	_, err = hex.Decode(actualMAC, v1Header)
 	if err != nil {
-		log.Printf("error decoding header: %v", err)
-		return false
+		return fmt.Errorf("error decoding header: %v", err)
 	}
 
-	return hmac.Equal(expectedMAC, actualMAC)
+	if !hmac.Equal(expectedMAC, actualMAC) {
+		return fmt.Errorf("invalid signature")
+	}
+
+	return nil
 }
