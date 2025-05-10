@@ -12,8 +12,6 @@ import (
 )
 
 const (
-	civicrmId = "civicrm_id"
-
 	customerCreatedEvent        = "customer.created"
 	customerSubscriptionDeleted = "customer.subscription.deleted"
 
@@ -96,16 +94,9 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (l *Listener) handleCustomerCreated(w http.ResponseWriter, rawEvent json.RawMessage) error {
-	c, err := parseRawEvent[types.Customer](w, rawEvent)
+	_, err := parseRawEvent[types.Customer](w, rawEvent)
 	if err != nil {
 		return err
-	}
-
-	id, ok := c.Metadata[civicrmId]
-	if ok {
-		log.Printf("New member: %s %s %s", c.Name, c.Email, id)
-	} else {
-		log.Printf("New member: %s %s", c.Name, c.Email)
 	}
 
 	// TODO create the user in Access
@@ -114,16 +105,9 @@ func (l *Listener) handleCustomerCreated(w http.ResponseWriter, rawEvent json.Ra
 }
 
 func (l *Listener) handleSubscriptionDeleted(w http.ResponseWriter, rawEvent json.RawMessage) error {
-	s, err := parseRawEvent[types.Subscription](w, rawEvent)
+	_, err := parseRawEvent[types.Subscription](w, rawEvent)
 	if err != nil {
 		return err
-	}
-
-	id, ok := s.Metadata[civicrmId]
-	if ok {
-		log.Printf("Deleted sub: %s", id)
-	} else {
-		log.Print("Deleted sub: no data")
 	}
 
 	// TODO store the event in db
