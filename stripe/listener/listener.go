@@ -86,7 +86,7 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 
 	default:
 		log.Printf("Unhandled event type: %s", event.Type)
-		log.Printf("Payload: %s", string(payload))
+		// log.Printf("Payload: %s", string(payload))
 	}
 
 	if err != nil {
