@@ -4,20 +4,19 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
+
+	"github.com/fatcatfablab/fcfl-member-sync/stripe/types"
 )
 
 const (
 	dbDriver = "mysql"
 
-	createTableDeactivations = `CREATE TABLE IF NOT EXISTS deactivations (
-		stripe_id VARCHAR(255),
-		dt DATETIME NOT NULL,
-		PRIMARY KEY (stripe_id)
-	);`
-)
+	insertCustomer = "INSERT INTO customers " +
+		"(customer_id, name, email, delinquent) VALUES (?, ?, ?, ?)"
 
-var insertDeactivation = "INSERT INTO deactivations (stripe_id, dt) VALUES (?, ?)"
+	insertMember       = "INSERT INTO members (customer_id) VALUES (?)"
+	updateMemberAccess = "UPDATE members SET access_id=? WHERE member_id=?"
+)
 
 type DB struct {
 	db     *sql.DB
@@ -35,19 +34,35 @@ func New(dsn string, dryRun bool) (*DB, error) {
 	}
 
 	log.Printf("Connected to db")
-	for _, stmt := range []string{createTableDeactivations} {
-		if _, err := db.Exec(stmt); err != nil {
-			return nil, fmt.Errorf("failed to create table: %w", err)
-		}
-	}
-
 	return &DB{db: db, dryRun: dryRun}, nil
 }
 
-func (d *DB) Save(stripeID string, t time.Time) error {
-	if _, err := d.db.Exec(insertDeactivation, stripeID, t); err != nil {
-		return fmt.Errorf("error inserting deactivation record: %w", err)
+func (d *DB) CreateCustomer(c types.Customer) error {
+	if _, err := d.db.Exec(
+		insertCustomer,
+		c.CustomerId,
+		c.Name,
+		c.Email,
+		c.Delinquent,
+	); err != nil {
+		return fmt.Errorf("error inserting customer: %w", err)
 	}
 
+	return nil
+}
+
+func (d *DB) CreateMember(customerId string) (int64, error) {
+	r, err := d.db.Exec(insertMember, customerId)
+	if err != nil {
+		return 0, fmt.Errorf("error inserting member: %w", err)
+	}
+
+	return r.LastInsertId()
+}
+
+func (d *DB) UpdateMemberAccess(memberId int64, accessId string) error {
+	if _, err := d.db.Exec(updateMemberAccess, accessId, memberId); err != nil {
+		return fmt.Errorf("error updating member's access id: %w", err)
+	}
 	return nil
 }
