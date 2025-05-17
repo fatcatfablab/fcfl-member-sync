@@ -12,9 +12,8 @@ type EventData struct {
 }
 
 type Customer struct {
-	Name     string            `json:"name"`
-	Email    string            `json:"email"`
-	Metadata map[string]string `json:"metadata"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 const (
