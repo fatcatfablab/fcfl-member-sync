@@ -24,10 +24,10 @@ type Listener struct {
 	secret     string
 	listenAddr string
 	endpoint   string
-	d          db.DB
+	d          *db.DB
 }
 
-func New(secret, listeAddr, endpoint string, d db.DB) *Listener {
+func New(secret, listeAddr, endpoint string, d *db.DB) *Listener {
 	return &Listener{
 		secret:     secret,
 		listenAddr: listeAddr,
