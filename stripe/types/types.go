@@ -12,8 +12,10 @@ type EventData struct {
 }
 
 type Customer struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Id         string `json:"id"`
+	Name       string `json:"name"`
+	Email      string `json:"email"`
+	Delinquent string `json:"delinquent"`
 }
 
 const (

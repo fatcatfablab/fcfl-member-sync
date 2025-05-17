@@ -6,36 +6,33 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"time"
 
+	"github.com/fatcatfablab/fcfl-member-sync/stripe/db"
 	"github.com/fatcatfablab/fcfl-member-sync/stripe/types"
 )
 
 const (
 	customerCreatedEvent        = "customer.created"
+	customerSubscriptionCreated = "customer.subscription.created"
 	customerSubscriptionDeleted = "customer.subscription.deleted"
 
 	maxBodyBytes          = int64(65536)
 	stripeSignatureHeader = "Stripe-Signature"
 )
 
-type DeletionSaver interface {
-	Save(string, time.Time) error
-}
-
 type Listener struct {
 	secret     string
 	listenAddr string
 	endpoint   string
-	ds         DeletionSaver
+	d          db.DB
 }
 
-func New(secret, listeAddr, endpoint string, d DeletionSaver) *Listener {
+func New(secret, listeAddr, endpoint string, d db.DB) *Listener {
 	return &Listener{
 		secret:     secret,
 		listenAddr: listeAddr,
 		endpoint:   endpoint,
-		ds:         d,
+		d:          d,
 	}
 }
 
@@ -81,8 +78,11 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 	case customerCreatedEvent:
 		err = handleCustomerCreated(event.Data.Raw)
 
+	case customerSubscriptionCreated:
+		err = handleSubscriptionCreated(event.Data.Raw)
+
 	case customerSubscriptionDeleted:
-		err = handleSubscriptionDeleted(event.Data.Raw, l.ds)
+		err = handleSubscriptionDeleted(event.Data.Raw)
 
 	default:
 		log.Printf("Unhandled event type: %s", event.Type)
@@ -102,26 +102,30 @@ func handleCustomerCreated(rawEvent json.RawMessage) error {
 		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
-	// TODO create the user in Access
-	log.Printf("Would create user: %v", c)
+	// TODO store customer in the db
+	log.Printf("%s event: %+v", customerCreatedEvent, c)
 
 	return nil
 }
 
-func handleSubscriptionDeleted(rawEvent json.RawMessage, ds DeletionSaver) error {
+func handleSubscriptionCreated(rawEvent json.RawMessage) error {
 	var s types.Subscription
 	if err := json.Unmarshal(rawEvent, &s); err != nil {
 		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
-	log.Printf("Marking user for deletion: %v", s)
+	// TODO retrieve customer and create member in db & Access
+	log.Printf("%s event: %+v", customerSubscriptionCreated, s)
+	return nil
+}
 
-	var t time.Time
-	if s.CancelAt != nil {
-		t = time.Unix(*s.CancelAt, 0)
-	} else {
-		t = time.Now()
+func handleSubscriptionDeleted(rawEvent json.RawMessage) error {
+	var s types.Subscription
+	if err := json.Unmarshal(rawEvent, &s); err != nil {
+		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
-	return ds.Save(s.Customer, t)
+	// TODO remove member & deactivate in Access
+	log.Printf("%s event: %+v", customerSubscriptionDeleted, s)
+	return nil
 }
