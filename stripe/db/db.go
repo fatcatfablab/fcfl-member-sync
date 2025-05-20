@@ -16,6 +16,7 @@ const (
 
 	insertMember       = "INSERT INTO members (customer_id) VALUES (?)"
 	updateMemberAccess = "UPDATE members SET access_id=? WHERE member_id=?"
+	removeMember       = "DELETE FROM members WHERE customer_id=?"
 )
 
 type DB struct {
@@ -63,6 +64,13 @@ func (d *DB) CreateMember(customerId string) (int64, error) {
 func (d *DB) UpdateMemberAccess(memberId int64, accessId string) error {
 	if _, err := d.db.Exec(updateMemberAccess, accessId, memberId); err != nil {
 		return fmt.Errorf("error updating member's access id: %w", err)
+	}
+	return nil
+}
+
+func (d *DB) RemoveMember(customerId string) error {
+	if _, err := d.db.Exec(removeMember, customerId); err != nil {
+		return fmt.Errorf("error removing member %s: %w", customerId, err)
 	}
 	return nil
 }

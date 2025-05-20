@@ -76,13 +76,13 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 
 	switch event.Type {
 	case customerCreatedEvent:
-		err = handleCustomerCreated(event.Data.Raw)
+		err = l.handleCustomerCreated(event.Data.Raw)
 
 	case customerSubscriptionCreated:
-		err = handleSubscriptionCreated(event.Data.Raw)
+		err = l.handleSubscriptionCreated(event.Data.Raw)
 
 	case customerSubscriptionDeleted:
-		err = handleSubscriptionDeleted(event.Data.Raw)
+		err = l.handleSubscriptionDeleted(event.Data.Raw)
 
 	default:
 		log.Printf("Unhandled event type: %s", event.Type)
@@ -96,36 +96,40 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func handleCustomerCreated(rawEvent json.RawMessage) error {
+func (l *Listener) handleCustomerCreated(rawEvent json.RawMessage) error {
 	var c types.Customer
 	if err := json.Unmarshal(rawEvent, &c); err != nil {
 		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
-	// TODO store customer in the db
 	log.Printf("%s event: %+v", customerCreatedEvent, c)
-
-	return nil
+	return l.d.CreateCustomer(c)
 }
 
-func handleSubscriptionCreated(rawEvent json.RawMessage) error {
+func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
 	var s types.Subscription
 	if err := json.Unmarshal(rawEvent, &s); err != nil {
 		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
-	// TODO retrieve customer and create member in db & Access
 	log.Printf("%s event: %+v", customerSubscriptionCreated, s)
-	return nil
+	_, err := l.d.CreateMember(s.Customer)
+
+	// TODO:
+	// 1- pull customer from db
+	// 2- pull from stripe if it doesn't exist -> create customer in db
+	// 3- create Access user
+	// 4- update member with access id
+	return err
 }
 
-func handleSubscriptionDeleted(rawEvent json.RawMessage) error {
+func (l *Listener) handleSubscriptionDeleted(rawEvent json.RawMessage) error {
 	var s types.Subscription
 	if err := json.Unmarshal(rawEvent, &s); err != nil {
 		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
-	// TODO remove member & deactivate in Access
 	log.Printf("%s event: %+v", customerSubscriptionDeleted, s)
-	return nil
+	// TODO deactivate in Access
+	return l.d.RemoveMember(s.Customer)
 }
