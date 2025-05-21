@@ -12,7 +12,8 @@ const (
 	dbDriver = "mysql"
 
 	insertCustomer = "INSERT INTO customers " +
-		"(customer_id, name, email, delinquent) VALUES (?, ?, ?, ?)"
+		"(customer_id, name, email, delinquent) VALUES (?, ?, ?, ?) " +
+		"ON DUPLICATE KEY UPDATE name=VALUE(name), delinquent=VALUE(delinquent)"
 
 	insertMember       = "INSERT INTO members (customer_id) VALUES (?)"
 	updateMemberAccess = "UPDATE members SET access_id=? WHERE member_id=?"

@@ -12,6 +12,7 @@ import (
 )
 
 const (
+	customerUpdatedEvent        = "customer.updated"
 	customerCreatedEvent        = "customer.created"
 	customerSubscriptionCreated = "customer.subscription.created"
 	customerSubscriptionDeleted = "customer.subscription.deleted"
@@ -75,8 +76,8 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	switch event.Type {
-	case customerCreatedEvent:
-		err = l.handleCustomerCreated(event.Data.Raw)
+	case customerCreatedEvent, customerUpdatedEvent:
+		err = l.handleCustomerEvent(event.Data.Raw, event.Type)
 
 	case customerSubscriptionCreated:
 		err = l.handleSubscriptionCreated(event.Data.Raw)
@@ -90,19 +91,20 @@ func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err != nil {
+		log.Printf("error handling request: %s", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func (l *Listener) handleCustomerCreated(rawEvent json.RawMessage) error {
+func (l *Listener) handleCustomerEvent(rawEvent json.RawMessage, eventType string) error {
 	var c types.Customer
 	if err := json.Unmarshal(rawEvent, &c); err != nil {
 		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
-	log.Printf("%s event: %+v", customerCreatedEvent, c)
+	log.Printf("%s event: %+v", eventType, c)
 	return l.d.CreateCustomer(c)
 }
 
