@@ -101,9 +101,8 @@ TEST_PATTERN ?= .
 SKIP_PATTERN ?=
 
 # Cross-Compilation Targets
-PLATFORMS ?= \
-    linux/amd64 \
-    linux/arm/7
+PLATFORMS ?= linux/amd64
+#    linux/arm/7
 
 # =============================================================================
 # 🎨 Terminal Colors & Emoji
