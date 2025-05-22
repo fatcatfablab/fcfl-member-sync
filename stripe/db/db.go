@@ -75,3 +75,27 @@ func (d *DB) RemoveMember(customerId string) error {
 	}
 	return nil
 }
+
+func (d *DB) FindCustomer(customerId string) (*types.Customer, error) {
+	r := d.db.QueryRow(
+		"SELECT customer_id, name, email, delinquent "+
+			"FROM customers WHERE customer_id=?",
+		customerId,
+	)
+
+	var c types.Customer
+	if err := r.Scan(
+		&c.CustomerId,
+		&c.Name,
+		&c.Email,
+		&c.Delinquent,
+	); err != nil {
+		return nil, fmt.Errorf(
+			"error querying customer %q: %w",
+			customerId,
+			err,
+		)
+	}
+
+	return &c, nil
+}

@@ -115,13 +115,19 @@ func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
 	}
 
 	log.Printf("%s event: %+v", customerSubscriptionCreated, s)
-	_, err := l.d.CreateMember(s.Customer)
+	c, err := l.d.FindCustomer(s.Customer)
+	if err != nil {
+		log.Printf("error querying customer %q. Not fatal", s.Customer)
+	}
+
+	log.Printf("creating member %q", c.Name)
+	id, err := l.d.CreateMember(s.Customer)
+	log.Printf("member id for %q: %d", c.Name, id)
 
 	// TODO:
-	// 1- pull customer from db
-	// 2- pull from stripe if it doesn't exist -> create customer in db
-	// 3- create Access user
-	// 4- update member with access id
+	// 1- pull from stripe if it doesn't exist -> create customer in db
+	// 2- create Access user
+	// 3- update member with access id
 	return err
 }
 
