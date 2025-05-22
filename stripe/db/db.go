@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/fatcatfablab/fcfl-member-sync/stripe/types"
 )
@@ -31,6 +32,7 @@ func New(dsn string, dryRun bool) (*DB, error) {
 		return nil, fmt.Errorf("can't connect to database: %w", err)
 	}
 
+	db.SetConnMaxLifetime(60 * time.Second)
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("can't ping the database: %w", err)
 	}
