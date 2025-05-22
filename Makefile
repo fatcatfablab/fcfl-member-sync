@@ -70,11 +70,11 @@ ALL_TAGS = $(BUILD_TAGS) $(EXTRA_TAGS)
 
 # Linker Flags
 LD_FLAGS += -s -w
-LD_FLAGS += -X 'main.Version=$(VERSION)'
-LD_FLAGS += -X 'main.Commit=$(GIT_COMMIT)'
-LD_FLAGS += -X 'main.Branch=$(GIT_BRANCH)'
-LD_FLAGS += -X 'main.BuildTime=$(BUILD_TIME)'
-LD_FLAGS += -X 'main.BuiltBy=$(BUILT_BY)'
+LD_FLAGS += -X 'github.com/fatcatfablab/fcfl-member-sync/version.Version=$(VERSION)'
+LD_FLAGS += -X 'github.com/fatcatfablab/fcfl-member-sync/version.Commit=$(GIT_COMMIT)'
+LD_FLAGS += -X 'github.com/fatcatfablab/fcfl-member-sync/version.Branch=$(GIT_BRANCH)'
+LD_FLAGS += -X 'github.com/fatcatfablab/fcfl-member-sync/version.BuildTime=$(BUILD_TIME)'
+LD_FLAGS += -X 'github.com/fatcatfablab/fcfl-member-sync/version.BuiltBy=$(BUILT_BY)'
 
 # Performance & Debug Flags
 GCFLAGS ?=

@@ -17,6 +17,7 @@ import (
 	"github.com/fatcatfablab/fcfl-member-sync/sync"
 	"github.com/fatcatfablab/fcfl-member-sync/types"
 	"github.com/fatcatfablab/fcfl-member-sync/updater"
+	"github.com/fatcatfablab/fcfl-member-sync/version"
 	ua "github.com/miquelruiz/go-unifi-access-api"
 
 	"github.com/samber/lo"
@@ -26,12 +27,6 @@ import (
 )
 
 var (
-	Version   string
-	Commit    string
-	Branch    string
-	BuildTime string
-	BuiltBy   string
-
 	addr = flag.String("addr", os.Getenv("FCFL_CRM_ADDR"), "address to connect to")
 	crt  = flag.String("crt", "certs/client.crt", "Path to the client certificate")
 	key  = flag.String("key", "certs/client.key", "Path to the client private key")
@@ -40,15 +35,15 @@ var (
 	uaHost  = flag.String("uaHost", os.Getenv("UA_HOST"), "Hostname or IP of the UniFi Access endpoint")
 	uaToken = flag.String("token", os.Getenv("UA_TOKEN"), "Auth token for the UniFi Access API")
 
-	dryRun  = flag.Bool("dry-run", false, "Do not actually make any changes")
-	version = flag.Bool("version", false, "Print the version and exit")
+	dryRun      = flag.Bool("dry-run", false, "Do not actually make any changes")
+	versionflag = flag.Bool("version", false, "Print the version and exit")
 )
 
 func main() {
 	flag.Parse()
 
-	if *version {
-		printVersion()
+	if *versionflag {
+		version.PrintVersion()
 		return
 	}
 
@@ -130,14 +125,4 @@ func createMembershipConn() (*grpc.ClientConn, error) {
 	}
 
 	return grpc.NewClient(serverUrl.Host, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
-}
-
-func printVersion() {
-	fmt.Printf("Version: %s\n"+
-		"Commit: %s\n"+
-		"Build Time: %s\n",
-		Version,
-		Commit,
-		BuildTime,
-	)
 }

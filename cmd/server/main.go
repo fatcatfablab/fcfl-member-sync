@@ -12,6 +12,7 @@ import (
 
 	pb "github.com/fatcatfablab/fcfl-member-sync/proto"
 	"github.com/fatcatfablab/fcfl-member-sync/server/userlist"
+	"github.com/fatcatfablab/fcfl-member-sync/version"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -21,19 +22,13 @@ const (
 )
 
 var (
-	Version   string
-	Commit    string
-	Branch    string
-	BuildTime string
-	BuiltBy   string
-
 	port = flag.Int("port", 50051, "The server port")
 	crt  = flag.String("crt", "certs/server.crt", "Path to the server certificate")
 	key  = flag.String("key", "certs/server.key", "Path to the server private key")
 	ca   = flag.String("ca", "certs/root_ca.crt", "Path to CA root certificate")
 	dsn  = flag.String("dsn", os.Getenv("DSN"), "Database DSN")
 
-	version = flag.Bool("version", false, "Print the version and exit")
+	versionflag = flag.Bool("version", false, "Print the version and exit")
 )
 
 type server struct {
@@ -48,8 +43,8 @@ func (s *server) List(ctx context.Context, _ *pb.Empty) (*pb.MemberList, error) 
 func main() {
 	flag.Parse()
 
-	if *version {
-		printVersion()
+	if *versionflag {
+		version.PrintVersion()
 		return
 	}
 
@@ -91,14 +86,4 @@ func main() {
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("error serving: %v", err)
 	}
-}
-
-func printVersion() {
-	fmt.Printf("Version: %s\n"+
-		"Commit: %s\n"+
-		"Build Time: %s\n",
-		Version,
-		Commit,
-		BuildTime,
-	)
 }
