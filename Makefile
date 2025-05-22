@@ -321,6 +321,8 @@ build-all: $(DIST_DIR) ## Build for all platforms
 				init="-C ../init fcfl-member-sync-server.service"; \
 			elif [[ "$$file" =~ "client" ]]; then \
 				init="-C ../init fcfl-member-sync-client.service fcfl-member-sync-client.timer"; \
+			elif [[ "$$file" =~ "webhook" ]]; then \
+				init="-C ../init stripe-webhook.service"; \
 			fi; \
 			tar --owner root --group root -czf "$$file.tar.gz" "$$file" $$init || exit 1; \
 			rm -f "$$file"; \
