@@ -15,7 +15,6 @@ type Customer struct {
 	CustomerId string `json:"id"`
 	Name       string `json:"name"`
 	Email      string `json:"email"`
-	Delinquent bool   `json:"delinquent"`
 }
 
 const (

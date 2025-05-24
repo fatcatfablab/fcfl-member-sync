@@ -13,8 +13,8 @@ const (
 	dbDriver = "mysql"
 
 	insertCustomer = "INSERT INTO customers " +
-		"(customer_id, name, email, delinquent) VALUES (?, ?, ?, ?) " +
-		"ON DUPLICATE KEY UPDATE name=VALUE(name), delinquent=VALUE(delinquent)"
+		"(customer_id, name, email) VALUES (?, ?, ?) " +
+		"ON DUPLICATE KEY UPDATE name=VALUE(name)"
 
 	insertMember       = "INSERT INTO members (customer_id) VALUES (?)"
 	updateMemberAccess = "UPDATE members SET access_id=? WHERE member_id=?"
@@ -47,7 +47,6 @@ func (d *DB) CreateCustomer(c types.Customer) error {
 		c.CustomerId,
 		c.Name,
 		c.Email,
-		c.Delinquent,
 	); err != nil {
 		return fmt.Errorf("error inserting customer: %w", err)
 	}
@@ -80,7 +79,7 @@ func (d *DB) RemoveMember(customerId string) error {
 
 func (d *DB) FindCustomer(customerId string) (*types.Customer, error) {
 	r := d.db.QueryRow(
-		"SELECT customer_id, name, email, delinquent "+
+		"SELECT customer_id, name, email "+
 			"FROM customers WHERE customer_id=?",
 		customerId,
 	)
@@ -90,7 +89,6 @@ func (d *DB) FindCustomer(customerId string) (*types.Customer, error) {
 		&c.CustomerId,
 		&c.Name,
 		&c.Email,
-		&c.Delinquent,
 	); err != nil {
 		return nil, fmt.Errorf(
 			"error querying customer %q: %w",
