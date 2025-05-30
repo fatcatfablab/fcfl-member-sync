@@ -25,7 +25,7 @@ type Listener struct {
 	secret     string
 	listenAddr string
 	endpoint   string
-	d          *db.DB
+	db         *db.DB
 }
 
 func New(secret, listeAddr, endpoint string, d *db.DB) *Listener {
@@ -33,7 +33,7 @@ func New(secret, listeAddr, endpoint string, d *db.DB) *Listener {
 		secret:     secret,
 		listenAddr: listeAddr,
 		endpoint:   endpoint,
-		d:          d,
+		db:         d,
 	}
 }
 
@@ -52,7 +52,6 @@ func (l *Listener) Start() error {
 }
 
 func (l *Listener) webhookHandler(w http.ResponseWriter, req *http.Request) {
-	log.Printf("Request received")
 	req.Body = http.MaxBytesReader(w, req.Body, maxBodyBytes)
 	payload, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -105,7 +104,7 @@ func (l *Listener) handleCustomerEvent(rawEvent json.RawMessage, eventType strin
 	}
 
 	log.Printf("%s event: %+v", eventType, c)
-	return l.d.CreateCustomer(c)
+	return l.db.CreateMember(c)
 }
 
 func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
@@ -115,14 +114,16 @@ func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
 	}
 
 	log.Printf("%s event: %+v", customerSubscriptionCreated, s)
-	c, err := l.d.FindCustomer(s.Customer)
+	m, err := l.db.FindMemberByCustomerId(s.Customer)
 	if err != nil {
-		log.Printf("error querying customer %q. Not fatal", s.Customer)
+		log.Printf("error querying member %q. Not fatal", s.Customer)
 	}
 
-	log.Printf("creating member %q", c.Name)
-	id, err := l.d.CreateMember(s.Customer)
-	log.Printf("member id for %q: %d", c.Name, id)
+	log.Printf("activating member %q", m.Name)
+	if err := l.db.ActivateMember(s.Customer); err != nil {
+		return fmt.Errorf("error activating member %q: %w", s.Customer, err)
+	}
+	log.Printf("member id for %q: %d", m.Name, m.MemberId)
 
 	// TODO:
 	// 1- pull from stripe if it doesn't exist -> create customer in db
@@ -139,5 +140,5 @@ func (l *Listener) handleSubscriptionDeleted(rawEvent json.RawMessage) error {
 
 	log.Printf("%s event: %+v", customerSubscriptionDeleted, s)
 	// TODO deactivate in Access
-	return l.d.RemoveMember(s.Customer)
+	return l.db.DeactivateMember(s.Customer)
 }

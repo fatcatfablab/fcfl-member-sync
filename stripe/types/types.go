@@ -34,3 +34,17 @@ type Subscription struct {
 	CancelAt   *int64 `json:"cancel_at"`
 	CanceledAt *int64 `json:"canceled_at"`
 }
+
+const (
+	MemberStatusActive    = "active"
+	MemberStatusNotActive = "not_active"
+)
+
+type Member struct {
+	MemberId   int64
+	CustomerId string
+	AccessId   *string
+	Name       string
+	Email      string
+	Status     string
+}

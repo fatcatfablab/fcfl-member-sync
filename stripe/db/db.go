@@ -11,14 +11,6 @@ import (
 
 const (
 	dbDriver = "mysql"
-
-	insertCustomer = "INSERT INTO customers " +
-		"(customer_id, name, email) VALUES (?, ?, ?) " +
-		"ON DUPLICATE KEY UPDATE name=VALUE(name)"
-
-	insertMember       = "INSERT INTO members (customer_id) VALUES (?)"
-	updateMemberAccess = "UPDATE members SET access_id=? WHERE member_id=?"
-	removeMember       = "DELETE FROM members WHERE customer_id=?"
 )
 
 type DB struct {
@@ -41,61 +33,75 @@ func New(dsn string, dryRun bool) (*DB, error) {
 	return &DB{db: db, dryRun: dryRun}, nil
 }
 
-func (d *DB) CreateCustomer(c types.Customer) error {
+func (d *DB) CreateMember(c types.Customer) error {
 	if _, err := d.db.Exec(
-		insertCustomer,
+		"INSERT INTO members "+
+			"(customer_id, name, email) VALUES (?, ?, ?) "+
+			"ON DUPLICATE KEY UPDATE name=VALUE(name), email=VALUE(email)",
 		c.CustomerId,
 		c.Name,
 		c.Email,
 	); err != nil {
-		return fmt.Errorf("error inserting customer: %w", err)
+		return fmt.Errorf("error inserting member: %w", err)
 	}
 
 	return nil
 }
 
-func (d *DB) CreateMember(customerId string) (int64, error) {
-	r, err := d.db.Exec(insertMember, customerId)
-	if err != nil {
-		return 0, fmt.Errorf("error inserting member: %w", err)
+func (d *DB) ActivateMember(customerId string) error {
+	if _, err := d.db.Exec(
+		"UPDATE members SET status='active' WHERE customer_id=?",
+		customerId,
+	); err != nil {
+		return fmt.Errorf("error updating member status: %w", err)
 	}
 
-	return r.LastInsertId()
+	return nil
 }
 
 func (d *DB) UpdateMemberAccess(memberId int64, accessId string) error {
-	if _, err := d.db.Exec(updateMemberAccess, accessId, memberId); err != nil {
+	if _, err := d.db.Exec(
+		"UPDATE members SET access_id=? WHERE member_id=?",
+		accessId,
+		memberId,
+	); err != nil {
 		return fmt.Errorf("error updating member's access id: %w", err)
 	}
 	return nil
 }
 
-func (d *DB) RemoveMember(customerId string) error {
-	if _, err := d.db.Exec(removeMember, customerId); err != nil {
+func (d *DB) DeactivateMember(customerId string) error {
+	if _, err := d.db.Exec(
+		"UPDATE members SET status='not_active' WHERE customer_id=?",
+		customerId,
+	); err != nil {
 		return fmt.Errorf("error removing member %s: %w", customerId, err)
 	}
 	return nil
 }
 
-func (d *DB) FindCustomer(customerId string) (*types.Customer, error) {
+func (d *DB) FindMemberByCustomerId(customerId string) (*types.Member, error) {
 	r := d.db.QueryRow(
-		"SELECT customer_id, name, email "+
-			"FROM customers WHERE customer_id=?",
+		"SELECT member_id, customer_id, access_id, name, email, status "+
+			"FROM members WHERE customer_id=?",
 		customerId,
 	)
 
-	var c types.Customer
+	var m types.Member
 	if err := r.Scan(
-		&c.CustomerId,
-		&c.Name,
-		&c.Email,
+		&m.MemberId,
+		&m.CustomerId,
+		&m.AccessId,
+		&m.Name,
+		&m.Email,
+		&m.Status,
 	); err != nil {
 		return nil, fmt.Errorf(
-			"error querying customer %q: %w",
+			"error querying customer_id %q: %w",
 			customerId,
 			err,
 		)
 	}
 
-	return &c, nil
+	return &m, nil
 }
