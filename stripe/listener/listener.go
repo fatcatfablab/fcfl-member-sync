@@ -1,13 +1,15 @@
+//go:generate mockgen --destination mock_memberdb_test.go --package listener . memberDb
+
 package listener
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 
-	"github.com/fatcatfablab/fcfl-member-sync/stripe/db"
 	"github.com/fatcatfablab/fcfl-member-sync/stripe/types"
 )
 
@@ -21,14 +23,22 @@ const (
 	stripeSignatureHeader = "Stripe-Signature"
 )
 
+type memberDb interface {
+	CreateMember(c types.Customer) error
+	ActivateMember(customerId string) error
+	UpdateMemberAccess(memberId int64, accessId string) error
+	DeactivateMember(customerId string) error
+	FindMemberByCustomerId(customerId string) (*types.Member, error)
+}
+
 type Listener struct {
 	secret     string
 	listenAddr string
 	endpoint   string
-	db         *db.DB
+	db         memberDb
 }
 
-func New(secret, listeAddr, endpoint string, d *db.DB) *Listener {
+func New(secret, listeAddr, endpoint string, d memberDb) *Listener {
 	return &Listener{
 		secret:     secret,
 		listenAddr: listeAddr,
@@ -103,6 +113,10 @@ func (l *Listener) handleCustomerEvent(rawEvent json.RawMessage, eventType strin
 		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
+	if c.CustomerId == "" && c.Email == "" && c.Name == "" {
+		return fmt.Errorf("no relevant data in event: %s", string(rawEvent))
+	}
+
 	log.Printf("%s event: %+v", eventType, c)
 	return l.db.CreateMember(c)
 }
@@ -113,10 +127,15 @@ func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
 		return fmt.Errorf("error unmarshalling json: %w", err)
 	}
 
+	if s.Customer == "" {
+		return errors.New("no customer id in subscription event")
+	}
+
 	log.Printf("%s event: %+v", customerSubscriptionCreated, s)
 	m, err := l.db.FindMemberByCustomerId(s.Customer)
 	if err != nil {
-		log.Printf("error querying member %q. Not fatal", s.Customer)
+		// TODO: pull from stripe if it doesn't exist
+		return fmt.Errorf("error querying member %q: %w", s.Customer, err)
 	}
 
 	log.Printf("activating member %q", m.Name)
@@ -126,9 +145,8 @@ func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
 	log.Printf("member id for %q: %d", m.Name, m.MemberId)
 
 	// TODO:
-	// 1- pull from stripe if it doesn't exist -> create customer in db
-	// 2- create Access user
-	// 3- update member with access id
+	// 1- create Access user
+	// 2- update member with access id
 	return err
 }
 
@@ -136,6 +154,10 @@ func (l *Listener) handleSubscriptionDeleted(rawEvent json.RawMessage) error {
 	var s types.Subscription
 	if err := json.Unmarshal(rawEvent, &s); err != nil {
 		return fmt.Errorf("error unmarshalling json: %w", err)
+	}
+
+	if s.Customer == "" {
+		return errors.New("no customer found in event")
 	}
 
 	log.Printf("%s event: %+v", customerSubscriptionDeleted, s)
