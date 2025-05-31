@@ -2,12 +2,24 @@ package listener
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/fatcatfablab/fcfl-member-sync/stripe/types"
 	"go.uber.org/mock/gomock"
+)
+
+const (
+	secret = "somesecret"
 )
 
 func TestHandleCustomerEvent(t *testing.T) {
@@ -202,6 +214,147 @@ func TestHandleSubscriptionDeleted(t *testing.T) {
 				} else {
 					t.Errorf("unexpected failure: %s", err)
 				}
+			}
+		})
+	}
+}
+
+func buildStripeRequest(t *testing.T, payload string) *http.Request {
+	ts := fmt.Sprintf("%d", time.Now().Unix())
+	signature, err := sign([]byte(payload), ts, secret)
+	if err != nil {
+		t.Fatalf("Failed to sign test payload: %s", err)
+	}
+
+	hexSignature := make([]byte, hex.EncodedLen(len(signature)))
+	hex.Encode(hexSignature, signature)
+	header := fmt.Sprintf("t=%s,v1=%s", ts, string(hexSignature))
+
+	return &http.Request{
+		Method: http.MethodPost,
+		URL:    &url.URL{Path: "/"},
+		Body:   io.NopCloser(strings.NewReader(payload)),
+		Header: http.Header{
+			stripeSignatureHeader: {header},
+		},
+	}
+}
+
+func buildInvalidSignatureRequest(t *testing.T) *http.Request {
+	r := buildStripeRequest(t, "")
+	r.Header[stripeSignatureHeader] = []string{"some-gibberish"}
+	return r
+}
+
+func TestWebhookHandler(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		request        *http.Request
+		mockSetup      func(*MockmemberDb)
+		wantStatusCode int
+	}{
+		{
+			name:           "Signature verification error",
+			request:        buildInvalidSignatureRequest(t),
+			wantStatusCode: http.StatusBadRequest,
+		},
+		{
+			name:           "Invalid event",
+			request:        buildStripeRequest(t, ""),
+			wantStatusCode: http.StatusBadRequest,
+		},
+		{
+			name: "Customer event",
+			request: buildStripeRequest(
+				t,
+				`{
+					"type":"customer.created",
+					"data":{
+						"object":{
+							"id":"abc",
+							"name":"name",
+							"email":"email"
+						}
+					}
+				}`,
+			),
+			mockSetup: func(mdb *MockmemberDb) {
+				mdb.EXPECT().
+					CreateMember(gomock.Eq(types.Customer{
+						CustomerId: "abc",
+						Name:       "name",
+						Email:      "email",
+					})).
+					Times(1)
+			},
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name: "Subscription created",
+			request: buildStripeRequest(
+				t,
+				`{
+					"type":"customer.subscription.created",
+					"data":{
+						"object":{
+							"customer":"abc"
+						}
+					}
+				}`,
+			),
+			mockSetup: func(mdb *MockmemberDb) {
+				mdb.EXPECT().
+					FindMemberByCustomerId(gomock.Eq("abc")).
+					Return(&types.Member{}, nil).
+					Times(1)
+
+				mdb.EXPECT().
+					ActivateMember(gomock.Eq("abc")).
+					Times(1)
+			},
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name: "Subscription deleted",
+			request: buildStripeRequest(
+				t,
+				`{
+					"type":"customer.subscription.deleted",
+					"data":{
+						"object":{
+							"customer":"abc"
+						}
+					}
+				}`,
+			),
+			mockSetup: func(mdb *MockmemberDb) {
+				mdb.EXPECT().
+					DeactivateMember(gomock.Eq("abc")).
+					Times(1)
+			},
+			wantStatusCode: http.StatusOK,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mdb := NewMockmemberDb(ctrl)
+			if tt.mockSetup != nil {
+				tt.mockSetup(mdb)
+			}
+			l := New(secret, "", "", mdb)
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("POST /", l.webhookHandler)
+
+			resp := httptest.NewRecorder()
+			mux.ServeHTTP(resp, tt.request)
+
+			if resp.Result().StatusCode != tt.wantStatusCode {
+				t.Errorf(
+					"Unexpected StatusCode. Wanted: %d, Got: %d",
+					tt.wantStatusCode,
+					resp.Result().StatusCode,
+				)
 			}
 		})
 	}
