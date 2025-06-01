@@ -92,14 +92,25 @@ func (d *DB) setMemberStatus(customerId string, status string) error {
 	return nil
 }
 
-func (d *DB) UpdateMemberAccess(memberId int64, accessId string) error {
-	if _, err := d.db.Exec(
-		"UPDATE members SET access_id=? WHERE member_id=?",
+func (d *DB) UpdateMemberAccess(customerId string, accessId string) error {
+	r, err := d.db.Exec(
+		"UPDATE members SET access_id=? WHERE customer_id=?",
 		accessId,
-		memberId,
-	); err != nil {
+		customerId,
+	)
+	if err != nil {
 		return fmt.Errorf("error updating member's access id: %w", err)
 	}
+
+	num, err := r.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error checking update rows affected: %w", err)
+	}
+
+	if num != 1 {
+		return fmt.Errorf("unexpected number of rows affected: %d", num)
+	}
+
 	return nil
 }
 

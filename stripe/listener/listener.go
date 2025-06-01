@@ -26,7 +26,7 @@ const (
 type memberDb interface {
 	CreateMember(c types.Customer) error
 	ActivateMember(customerId string) error
-	UpdateMemberAccess(memberId int64, accessId string) error
+	UpdateMemberAccess(customerId string, accessId string) error
 	DeactivateMember(customerId string) error
 	FindMemberByCustomerId(customerId string) (*types.Member, error)
 }

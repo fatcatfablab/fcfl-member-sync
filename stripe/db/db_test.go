@@ -174,3 +174,72 @@ func TestActivateDeactivateMember(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateMemberAccess(t *testing.T) {
+	db := getDb(t, fmt.Sprintf("test_update_member_access_%d", time.Now().Unix()))
+
+	for _, c := range []types.Customer{
+		{CustomerId: "abc", Name: "name1", Email: "email1"},
+		{CustomerId: "xyz", Name: "name2", Email: "email2"},
+	} {
+		if err := db.CreateMember(c); err != nil {
+			t.Fatalf("error creating fixture: %s", err)
+		}
+	}
+
+	for _, tt := range []struct {
+		name       string
+		shouldFail bool
+		customerId string
+		accessId   string
+	}{
+		{
+			name:       "Update unexisting member fails",
+			shouldFail: true,
+			customerId: "xxx",
+			accessId:   "abc",
+		},
+		{
+			name:       "Invalid accessId fails",
+			shouldFail: true,
+			customerId: "abc",
+			accessId:   "weqrqwer",
+		},
+		{
+			name:       "Regular update",
+			customerId: "abc",
+			accessId:   "1c897f18-2cb4-4644-a900-8ddfc23d6f77",
+		},
+		{
+			name:       "Update with the same accessId fails",
+			customerId: "xyz",
+			accessId:   "1c897f18-2cb4-4644-a900-8ddfc23d6f77",
+			shouldFail: true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			err := db.UpdateMemberAccess(tt.customerId, tt.accessId)
+			if err != nil {
+				if !tt.shouldFail {
+					t.Errorf("unexpected error: %s", err)
+				}
+			}
+
+			if tt.shouldFail {
+				if err == nil {
+					t.Errorf("expected error, but didn't")
+				}
+				return
+			}
+
+			m, err := db.FindMemberByCustomerId(tt.customerId)
+			if err != nil {
+				t.Errorf("error finding customer: %s", err)
+			}
+
+			if m.AccessId == nil || *m.AccessId != tt.accessId {
+				t.Errorf("unexpected access_id: %s", *m.AccessId)
+			}
+		})
+	}
+}

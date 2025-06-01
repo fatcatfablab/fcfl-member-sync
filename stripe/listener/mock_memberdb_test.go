@@ -98,15 +98,15 @@ func (mr *MockmemberDbMockRecorder) FindMemberByCustomerId(customerId any) *gomo
 }
 
 // UpdateMemberAccess mocks base method.
-func (m *MockmemberDb) UpdateMemberAccess(memberId int64, accessId string) error {
+func (m *MockmemberDb) UpdateMemberAccess(customerId, accessId string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateMemberAccess", memberId, accessId)
+	ret := m.ctrl.Call(m, "UpdateMemberAccess", customerId, accessId)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateMemberAccess indicates an expected call of UpdateMemberAccess.
-func (mr *MockmemberDbMockRecorder) UpdateMemberAccess(memberId, accessId any) *gomock.Call {
+func (mr *MockmemberDbMockRecorder) UpdateMemberAccess(customerId, accessId any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMemberAccess", reflect.TypeOf((*MockmemberDb)(nil).UpdateMemberAccess), memberId, accessId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMemberAccess", reflect.TypeOf((*MockmemberDb)(nil).UpdateMemberAccess), customerId, accessId)
 }
