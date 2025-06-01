@@ -2,9 +2,12 @@ package db
 
 import (
 	"database/sql"
+	_ "embed"
 	"fmt"
 	"log"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/fatcatfablab/fcfl-member-sync/stripe/types"
 )
@@ -13,12 +16,19 @@ const (
 	dbDriver = "mysql"
 )
 
-type DB struct {
-	db     *sql.DB
-	dryRun bool
+//go:embed schema/members.sql
+var createTable string
+
+type sqldb interface {
+	Exec(query string, args ...any) (sql.Result, error)
+	QueryRow(query string, args ...any) *sql.Row
 }
 
-func New(dsn string, dryRun bool) (*DB, error) {
+type DB struct {
+	db sqldb
+}
+
+func New(dsn string) (*DB, error) {
 	db, err := sql.Open(dbDriver, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("can't connect to database: %w", err)
@@ -29,8 +39,12 @@ func New(dsn string, dryRun bool) (*DB, error) {
 		return nil, fmt.Errorf("can't ping the database: %w", err)
 	}
 
+	if _, err := db.Exec(createTable); err != nil {
+		return nil, fmt.Errorf("error creating table: %w", err)
+	}
+
 	log.Printf("Connected to db")
-	return &DB{db: db, dryRun: dryRun}, nil
+	return &DB{db: db}, nil
 }
 
 func (d *DB) CreateMember(c types.Customer) error {
@@ -49,11 +63,30 @@ func (d *DB) CreateMember(c types.Customer) error {
 }
 
 func (d *DB) ActivateMember(customerId string) error {
-	if _, err := d.db.Exec(
-		"UPDATE members SET status='active' WHERE customer_id=?",
+	return d.setMemberStatus(customerId, types.MemberStatusActive)
+}
+
+func (d *DB) DeactivateMember(customerId string) error {
+	return d.setMemberStatus(customerId, types.MemberStatusNotActive)
+}
+
+func (d *DB) setMemberStatus(customerId string, status string) error {
+	r, err := d.db.Exec(
+		"UPDATE members SET status=? WHERE customer_id=?",
+		status,
 		customerId,
-	); err != nil {
+	)
+	if err != nil {
 		return fmt.Errorf("error updating member status: %w", err)
+	}
+
+	num, err := r.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("error checking update rows affected: %w", err)
+	}
+
+	if num != 1 {
+		return fmt.Errorf("unexpected number of rows affected: %d", num)
 	}
 
 	return nil
@@ -66,16 +99,6 @@ func (d *DB) UpdateMemberAccess(memberId int64, accessId string) error {
 		memberId,
 	); err != nil {
 		return fmt.Errorf("error updating member's access id: %w", err)
-	}
-	return nil
-}
-
-func (d *DB) DeactivateMember(customerId string) error {
-	if _, err := d.db.Exec(
-		"UPDATE members SET status='not_active' WHERE customer_id=?",
-		customerId,
-	); err != nil {
-		return fmt.Errorf("error removing member %s: %w", customerId, err)
 	}
 	return nil
 }

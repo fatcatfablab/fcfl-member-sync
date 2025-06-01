@@ -7,7 +7,6 @@ import (
 	"github.com/fatcatfablab/fcfl-member-sync/stripe/db"
 	"github.com/fatcatfablab/fcfl-member-sync/stripe/listener"
 	"github.com/fatcatfablab/fcfl-member-sync/version"
-	_ "github.com/go-sql-driver/mysql"
 )
 
 var (
@@ -24,7 +23,6 @@ func init() {
 	flag.StringVar(&listenAddr, "listen-address", "127.0.0.1:8081", "Address to listen on")
 	flag.StringVar(&listenEndpoint, "listen-endpoint", "/stripe_events", "Endpoint of the listener")
 	flag.StringVar(&dsn, "dsn", os.Getenv("WEBHOOK_DSN"), "Database connection string")
-	flag.BoolVar(&dryRun, "dry-run", false, "Dry-run mode")
 	flag.BoolVar(&versionflag, "version", false, "Print the version and exit")
 }
 
@@ -40,7 +38,7 @@ func main() {
 		panic("No database connection string given")
 	}
 
-	d, err := db.New(dsn, dryRun)
+	d, err := db.New(dsn)
 	if err != nil {
 		panic(err)
 	}
