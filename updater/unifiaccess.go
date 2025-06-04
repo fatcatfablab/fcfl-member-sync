@@ -57,19 +57,7 @@ func (u *UAUpdater) List() (memberMap, error) {
 func (u *UAUpdater) Add(members memberSet) error {
 	var err, reterror error
 	for m := range members.Iter() {
-		msg := "Adding member %v"
-		if u.dryRun {
-			msg = "[DRY-RUN] " + msg
-		}
-		log.Printf(msg, m)
-		id := fmt.Sprintf("%d", m.Id)
-		if !u.dryRun {
-			_, err = u.uaClient.CreateUser(schema.UserRequest{
-				FirstName:      m.FirstName,
-				LastName:       m.LastName,
-				EmployeeNumber: &id,
-			})
-		}
+		_, err = u.AddMember(m)
 		if err != nil {
 			log.Printf("Skipping due to failure: %v", err)
 			reterror = err
@@ -79,21 +67,36 @@ func (u *UAUpdater) Add(members memberSet) error {
 	return reterror
 }
 
+func (u *UAUpdater) AddMember(m member) (string, error) {
+	var err error
+	var accessId string
+
+	msg := "Adding member %v"
+	if u.dryRun {
+		msg = "[DRY-RUN] " + msg
+	}
+	log.Printf(msg, m)
+
+	id := fmt.Sprintf("%d", m.Id)
+	if !u.dryRun {
+		r, err := u.uaClient.CreateUser(schema.UserRequest{
+			FirstName:      m.FirstName,
+			LastName:       m.LastName,
+			EmployeeNumber: &id,
+		})
+		accessId = r.Id
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return accessId, err
+}
+
 func (u *UAUpdater) Disable(members memberMap) error {
 	var err, reterror error
 	for id, m := range members {
-		msg := "Disabling member %v"
-		if u.dryRun {
-			msg = "[DRY-RUN] " + msg
-		}
-		log.Printf(msg, m)
-		if !u.dryRun {
-			err = u.uaClient.UpdateUser(id, schema.UserRequest{
-				FirstName: m.FirstName,
-				LastName:  m.LastName,
-				Status:    &deactivated,
-			})
-		}
+		err = u.DisableMember(id, m)
 		if err != nil {
 			log.Printf("error disabling member: %s", err)
 			reterror = err
@@ -101,6 +104,26 @@ func (u *UAUpdater) Disable(members memberMap) error {
 	}
 
 	return reterror
+}
+
+func (u *UAUpdater) DisableMember(id string, m member) error {
+	var err error
+
+	msg := "Disabling member %v"
+	if u.dryRun {
+		msg = "[DRY-RUN] " + msg
+	}
+	log.Printf(msg, m)
+
+	if !u.dryRun {
+		err = u.uaClient.UpdateUser(id, schema.UserRequest{
+			FirstName: m.FirstName,
+			LastName:  m.LastName,
+			Status:    &deactivated,
+		})
+	}
+
+	return err
 }
 
 func (u *UAUpdater) Update(members memberMap) error {

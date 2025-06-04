@@ -1,4 +1,4 @@
-//go:generate mockgen --destination mock_memberdb_test.go --package listener . memberDb
+//go:generate mockgen --destination mock_listener_test.go --package listener . memberDb,uaUpdater
 
 package listener
 
@@ -9,8 +9,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/fatcatfablab/fcfl-member-sync/stripe/types"
+	uaTypes "github.com/fatcatfablab/fcfl-member-sync/types"
 )
 
 const (
@@ -31,19 +33,26 @@ type memberDb interface {
 	FindMemberByCustomerId(customerId string) (*types.Member, error)
 }
 
+type uaUpdater interface {
+	AddMember(uaTypes.ComparableMember) (string, error)
+	DisableMember(string, uaTypes.ComparableMember) error
+}
+
 type Listener struct {
 	secret     string
 	listenAddr string
 	endpoint   string
 	db         memberDb
+	ua         uaUpdater
 }
 
-func New(secret, listeAddr, endpoint string, d memberDb) *Listener {
+func New(secret, listenAddr, endpoint string, d memberDb, u uaUpdater) *Listener {
 	return &Listener{
 		secret:     secret,
-		listenAddr: listeAddr,
+		listenAddr: listenAddr,
 		endpoint:   endpoint,
 		db:         d,
+		ua:         u,
 	}
 }
 
@@ -144,10 +153,13 @@ func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
 	}
 	log.Printf("member id for %q: %d", m.Name, m.MemberId)
 
-	// TODO:
-	// 1- create Access user
-	// 2- update member with access id
-	return err
+	accessId, err := l.ua.AddMember(memberToComparableMember(*m))
+	if err != nil {
+		return fmt.Errorf("failed to add member %+v to UA: %w", m, err)
+	}
+	log.Printf("access id for %q: %s", m.Name, accessId)
+
+	return l.db.UpdateMemberAccess(s.Customer, accessId)
 }
 
 func (l *Listener) handleSubscriptionDeleted(rawEvent json.RawMessage) error {
@@ -161,6 +173,32 @@ func (l *Listener) handleSubscriptionDeleted(rawEvent json.RawMessage) error {
 	}
 
 	log.Printf("%s event: %+v", customerSubscriptionDeleted, s)
-	// TODO deactivate in Access
+	m, err := l.db.FindMemberByCustomerId(s.Customer)
+	if err != nil {
+		return fmt.Errorf("error finding membmer %q: %w", s.Customer, err)
+	}
+
+	if m.AccessId != nil {
+		err = l.ua.DisableMember(*m.AccessId, memberToComparableMember(*m))
+		if err != nil {
+			return fmt.Errorf(
+				"error disabing member %q in UA: %w",
+				s.Customer,
+				err,
+			)
+		}
+	} else {
+		log.Printf("member didn't have an access_id: %s", s.Customer)
+	}
+
 	return l.db.DeactivateMember(s.Customer)
+}
+
+func memberToComparableMember(m types.Member) uaTypes.ComparableMember {
+	firstName, lastNAme, _ := strings.Cut(m.Name, " ")
+	return uaTypes.ComparableMember{
+		Id:        int32(m.MemberId),
+		FirstName: firstName,
+		LastName:  lastNAme,
+	}
 }

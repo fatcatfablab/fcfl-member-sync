@@ -27,7 +27,7 @@ func TestHandleCustomerEvent(t *testing.T) {
 		name       string
 		input      json.RawMessage
 		shouldFail bool
-		mockSetup  func(*MockmemberDb)
+		mockSetup  func(*MockmemberDb, *MockuaUpdater)
 	}{
 		{
 			name:       "Empty input",
@@ -42,7 +42,7 @@ func TestHandleCustomerEvent(t *testing.T) {
 		{
 			name:  "Regular event",
 			input: []byte(`{"id":"abc","name":"name","email":"email"}`),
-			mockSetup: func(mdb *MockmemberDb) {
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
 				mdb.EXPECT().CreateMember(gomock.Eq(types.Customer{
 					CustomerId: "abc",
 					Name:       "name",
@@ -54,12 +54,13 @@ func TestHandleCustomerEvent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mdb := NewMockmemberDb(ctrl)
+			ua := NewMockuaUpdater(ctrl)
 
 			if tt.mockSetup != nil {
-				tt.mockSetup(mdb)
+				tt.mockSetup(mdb, ua)
 			}
 
-			l := New("", "", "", mdb)
+			l := New("", "", "", mdb, ua)
 			err := l.handleCustomerEvent(tt.input, customerCreatedEvent)
 			failed := err != nil
 
@@ -79,7 +80,7 @@ func TestHandleSubscriptionCreated(t *testing.T) {
 		name       string
 		input      []byte
 		shouldFail bool
-		mockSetup  func(mdb *MockmemberDb)
+		mockSetup  func(mdb *MockmemberDb, ua *MockuaUpdater)
 	}{
 		{
 			name:       "Empty input",
@@ -95,7 +96,7 @@ func TestHandleSubscriptionCreated(t *testing.T) {
 			name:       "Unexistent member",
 			input:      []byte(`{"status":"active","customer":"abc"}`),
 			shouldFail: true,
-			mockSetup: func(mdb *MockmemberDb) {
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
 				mdb.EXPECT().
 					FindMemberByCustomerId(gomock.Eq("abc")).
 					Return(&types.Member{}, sql.ErrNoRows).
@@ -104,13 +105,17 @@ func TestHandleSubscriptionCreated(t *testing.T) {
 				mdb.EXPECT().
 					ActivateMember(gomock.Eq("abc")).
 					Times(0)
+
+				ua.EXPECT().
+					AddMember(gomock.Any()).
+					Times(0)
 			},
 		},
 		{
 			name:       "Failed activation",
 			input:      []byte(`{"status":"active","customer":"abc"}`),
 			shouldFail: true,
-			mockSetup: func(mdb *MockmemberDb) {
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
 				mdb.EXPECT().
 					FindMemberByCustomerId(gomock.Eq("abc")).
 					Return(&types.Member{MemberId: 123, CustomerId: "abc"}, nil).
@@ -120,12 +125,16 @@ func TestHandleSubscriptionCreated(t *testing.T) {
 					ActivateMember(gomock.Eq("abc")).
 					Return(errors.New("")).
 					Times(1)
+
+				ua.EXPECT().
+					AddMember(gomock.Any()).
+					Times(0)
 			},
 		},
 		{
 			name:  "Regular subscription",
 			input: []byte(`{"status":"active","customer":"abc"}`),
-			mockSetup: func(mdb *MockmemberDb) {
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
 				mdb.EXPECT().
 					FindMemberByCustomerId(gomock.Eq("abc")).
 					Return(&types.Member{MemberId: 123, CustomerId: "abc"}, nil).
@@ -134,18 +143,28 @@ func TestHandleSubscriptionCreated(t *testing.T) {
 				mdb.EXPECT().
 					ActivateMember(gomock.Eq("abc")).
 					Times(1)
+
+				ua.EXPECT().
+					AddMember(gomock.Any()).
+					Return("access-id", nil).
+					Times(1)
+
+				mdb.EXPECT().
+					UpdateMemberAccess(gomock.Eq("abc"), gomock.Eq("access-id")).
+					Times(1)
 			},
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mdb := NewMockmemberDb(ctrl)
+			ua := NewMockuaUpdater(ctrl)
 
 			if tt.mockSetup != nil {
-				tt.mockSetup(mdb)
+				tt.mockSetup(mdb, ua)
 			}
 
-			l := New("", "", "", mdb)
+			l := New("", "", "", mdb, ua)
 			err := l.handleSubscriptionCreated(tt.input)
 			failed := err != nil
 
@@ -165,7 +184,7 @@ func TestHandleSubscriptionDeleted(t *testing.T) {
 		name       string
 		input      json.RawMessage
 		shouldFail bool
-		mockSetup  func(*MockmemberDb)
+		mockSetup  func(mdb *MockmemberDb, ua *MockuaUpdater)
 	}{
 		{
 			name:       "Empty input",
@@ -181,7 +200,16 @@ func TestHandleSubscriptionDeleted(t *testing.T) {
 			name:       "Failed deactivation",
 			input:      []byte(`{"status":"canceled","customer":"abc"}`),
 			shouldFail: true,
-			mockSetup: func(mdb *MockmemberDb) {
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
+				mdb.EXPECT().
+					FindMemberByCustomerId(gomock.Eq("abc")).
+					Return(&types.Member{MemberId: 123, CustomerId: "abc"}, nil).
+					Times(1)
+
+				ua.EXPECT().
+					DisableMember(gomock.Any(), gomock.Any()).
+					Times(0)
+
 				mdb.EXPECT().
 					DeactivateMember(gomock.Eq("abc")).
 					Return(errors.New("")).
@@ -191,7 +219,17 @@ func TestHandleSubscriptionDeleted(t *testing.T) {
 		{
 			name:  "Regular event",
 			input: []byte(`{"status":"canceled","customer":"abc"}`),
-			mockSetup: func(mdb *MockmemberDb) {
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
+				accessId := "zxcv"
+				mdb.EXPECT().
+					FindMemberByCustomerId(gomock.Eq("abc")).
+					Return(&types.Member{MemberId: 123, CustomerId: "abc", AccessId: &accessId}, nil).
+					Times(1)
+
+				ua.EXPECT().
+					DisableMember(gomock.Eq(accessId), gomock.Any()).
+					Times(1)
+
 				mdb.EXPECT().DeactivateMember(gomock.Eq("abc")).Times(1)
 			},
 		},
@@ -199,12 +237,13 @@ func TestHandleSubscriptionDeleted(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mdb := NewMockmemberDb(ctrl)
+			ua := NewMockuaUpdater(ctrl)
 
 			if tt.mockSetup != nil {
-				tt.mockSetup(mdb)
+				tt.mockSetup(mdb, ua)
 			}
 
-			l := New("", "", "", mdb)
+			l := New("", "", "", mdb, ua)
 			err := l.handleSubscriptionDeleted(tt.input)
 			failed := err != nil
 
@@ -250,7 +289,7 @@ func TestWebhookHandler(t *testing.T) {
 	for _, tt := range []struct {
 		name           string
 		request        *http.Request
-		mockSetup      func(*MockmemberDb)
+		mockSetup      func(mdb *MockmemberDb, ua *MockuaUpdater)
 		wantStatusCode int
 	}{
 		{
@@ -278,7 +317,7 @@ func TestWebhookHandler(t *testing.T) {
 					}
 				}`,
 			),
-			mockSetup: func(mdb *MockmemberDb) {
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
 				mdb.EXPECT().
 					CreateMember(gomock.Eq(types.Customer{
 						CustomerId: "abc",
@@ -302,7 +341,7 @@ func TestWebhookHandler(t *testing.T) {
 					}
 				}`,
 			),
-			mockSetup: func(mdb *MockmemberDb) {
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
 				mdb.EXPECT().
 					FindMemberByCustomerId(gomock.Eq("abc")).
 					Return(&types.Member{}, nil).
@@ -310,6 +349,15 @@ func TestWebhookHandler(t *testing.T) {
 
 				mdb.EXPECT().
 					ActivateMember(gomock.Eq("abc")).
+					Times(1)
+
+				ua.EXPECT().
+					AddMember(gomock.Any()).
+					Return("access-id", nil).
+					Times(1)
+
+				mdb.EXPECT().
+					UpdateMemberAccess(gomock.Eq("abc"), gomock.Eq("access-id")).
 					Times(1)
 			},
 			wantStatusCode: http.StatusOK,
@@ -327,7 +375,17 @@ func TestWebhookHandler(t *testing.T) {
 					}
 				}`,
 			),
-			mockSetup: func(mdb *MockmemberDb) {
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
+				accessId := "zxcv"
+				mdb.EXPECT().
+					FindMemberByCustomerId(gomock.Eq("abc")).
+					Return(&types.Member{MemberId: 123, CustomerId: "abc", AccessId: &accessId}, nil).
+					Times(1)
+
+				ua.EXPECT().
+					DisableMember(gomock.Eq(accessId), gomock.Any()).
+					Times(1)
+
 				mdb.EXPECT().
 					DeactivateMember(gomock.Eq("abc")).
 					Times(1)
@@ -338,10 +396,12 @@ func TestWebhookHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mdb := NewMockmemberDb(ctrl)
+			ua := NewMockuaUpdater(ctrl)
+
 			if tt.mockSetup != nil {
-				tt.mockSetup(mdb)
+				tt.mockSetup(mdb, ua)
 			}
-			l := New(secret, "", "", mdb)
+			l := New(secret, "", "", mdb, ua)
 
 			mux := http.NewServeMux()
 			mux.HandleFunc("POST /", l.webhookHandler)
