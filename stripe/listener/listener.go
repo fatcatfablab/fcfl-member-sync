@@ -147,9 +147,11 @@ func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
 		return fmt.Errorf("error querying member %q: %w", s.Customer, err)
 	}
 
-	log.Printf("activating member %q", m.Name)
-	if err := l.db.ActivateMember(s.Customer); err != nil {
-		return fmt.Errorf("error activating member %q: %w", s.Customer, err)
+	if m.Status != types.MemberStatusActive {
+		log.Printf("activating member %q", m.Name)
+		if err := l.db.ActivateMember(s.Customer); err != nil {
+			return fmt.Errorf("error activating member %q: %w", s.Customer, err)
+		}
 	}
 	log.Printf("member id for %q: %d", m.Name, m.MemberId)
 
@@ -159,7 +161,11 @@ func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
 	}
 	log.Printf("access id for %q: %s", m.Name, accessId)
 
-	return l.db.UpdateMemberAccess(s.Customer, accessId)
+	if accessId != "" {
+		err = l.db.UpdateMemberAccess(s.Customer, accessId)
+	}
+
+	return err
 }
 
 func (l *Listener) handleSubscriptionDeleted(rawEvent json.RawMessage) error {
