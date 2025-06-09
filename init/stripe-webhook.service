@@ -7,7 +7,7 @@ Type = simple
 TimeoutStopSec = 20
 WorkingDirectory = /opt/stripe-webhook
 EnvironmentFile = /opt/stripe-webhook/.env
-ExecStart = /opt/stripe-webhook/webhook --dry-run
+ExecStart = /opt/stripe-webhook/webhook
 Restart = always
 
 [Install]
