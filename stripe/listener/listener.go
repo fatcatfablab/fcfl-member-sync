@@ -155,17 +155,19 @@ func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
 	}
 	log.Printf("member id for %q: %d", m.Name, m.MemberId)
 
-	accessId, err := l.ua.AddMember(memberToComparableMember(*m))
-	if err != nil {
-		return fmt.Errorf("failed to add member %+v to UA: %w", m, err)
-	}
-	log.Printf("access id for %q: %s", m.Name, accessId)
+	if m.AccessId == nil {
+		accessId, err := l.ua.AddMember(memberToComparableMember(*m))
+		if err != nil {
+			return fmt.Errorf("failed to add member %+v to UA: %w", m, err)
+		}
+		log.Printf("access id for %q: %s", m.Name, accessId)
 
-	if accessId != "" {
-		err = l.db.UpdateMemberAccess(s.Customer, accessId)
+		if accessId != "" {
+			return l.db.UpdateMemberAccess(s.Customer, accessId)
+		}
 	}
 
-	return err
+	return nil
 }
 
 func (l *Listener) handleSubscriptionDeleted(rawEvent json.RawMessage) error {

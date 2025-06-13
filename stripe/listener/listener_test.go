@@ -154,6 +154,25 @@ func TestHandleSubscriptionCreated(t *testing.T) {
 					Times(1)
 			},
 		},
+		{
+			name:  "Duplicated subscription",
+			input: []byte(`{"status":"active","customer":"abc"}`),
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
+				accessId := "abcdef"
+				mdb.EXPECT().
+					FindMemberByCustomerId(gomock.Eq("abc")).
+					Return(&types.Member{MemberId: 123, CustomerId: "abc", Status: types.MemberStatusActive, AccessId: &accessId}, nil).
+					Times(1)
+
+				mdb.EXPECT().
+					ActivateMember(gomock.Any()).
+					Times(0)
+
+				ua.EXPECT().
+					AddMember(gomock.Any()).
+					Times(0)
+			},
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
