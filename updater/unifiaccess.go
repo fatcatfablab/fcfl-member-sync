@@ -129,25 +129,33 @@ func (u *UAUpdater) DisableMember(id string, m member) error {
 func (u *UAUpdater) Update(members memberMap) error {
 	var err, reterror error
 	for id, m := range members {
-		msg := "Updating member %v"
-		if u.dryRun {
-			msg = "[DRY-RUN] " + msg
-		}
-		log.Printf(msg, m)
-		employeeNumber := fmt.Sprintf("%d", m.Id)
-		if !u.dryRun {
-			err = u.uaClient.UpdateUser(id, schema.UserRequest{
-				FirstName:      m.FirstName,
-				LastName:       m.LastName,
-				EmployeeNumber: &employeeNumber,
-				Status:         &active,
-			})
-		}
-		if err != nil {
+		if err = u.UpdateMember(id, m); err != nil {
 			log.Printf("error updating member: %s", err)
 			reterror = err
 		}
 	}
 
 	return reterror
+}
+
+func (u *UAUpdater) UpdateMember(id string, m member) error {
+	var err error
+
+	msg := "Updating member %v"
+	if u.dryRun {
+		msg = "[DRY-RUN] " + msg
+	}
+	log.Printf(msg, m)
+
+	employeeNumber := fmt.Sprintf("%d", m.Id)
+	if !u.dryRun {
+		err = u.uaClient.UpdateUser(id, schema.UserRequest{
+			FirstName:      m.FirstName,
+			LastName:       m.LastName,
+			EmployeeNumber: &employeeNumber,
+			Status:         &active,
+		})
+	}
+
+	return err
 }

@@ -164,3 +164,17 @@ func (mr *MockuaUpdaterMockRecorder) DisableMember(arg0, arg1 any) *gomock.Call 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DisableMember", reflect.TypeOf((*MockuaUpdater)(nil).DisableMember), arg0, arg1)
 }
+
+// UpdateMember mocks base method.
+func (m *MockuaUpdater) UpdateMember(arg0 string, arg1 types0.ComparableMember) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateMember", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateMember indicates an expected call of UpdateMember.
+func (mr *MockuaUpdaterMockRecorder) UpdateMember(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMember", reflect.TypeOf((*MockuaUpdater)(nil).UpdateMember), arg0, arg1)
+}

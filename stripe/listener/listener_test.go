@@ -48,6 +48,32 @@ func TestHandleCustomerEvent(t *testing.T) {
 					Name:       "name",
 					Email:      "email",
 				})).Times(1)
+
+				mdb.EXPECT().
+					FindMemberByCustomerId(gomock.Eq("abc")).
+					Return(&types.Member{MemberId: 123, CustomerId: "abc"}, nil).
+					Times(1)
+
+				ua.EXPECT().UpdateMember(gomock.Any(), gomock.Any()).Times(0)
+			},
+		},
+		{
+			name:  "Update existing member",
+			input: []byte(`{"id":"abc","name":"name","email":"email"}`),
+			mockSetup: func(mdb *MockmemberDb, ua *MockuaUpdater) {
+				accessId := "access-id"
+				mdb.EXPECT().CreateMember(gomock.Eq(types.Customer{
+					CustomerId: "abc",
+					Name:       "name",
+					Email:      "email",
+				})).Times(1)
+
+				mdb.EXPECT().
+					FindMemberByCustomerId(gomock.Eq("abc")).
+					Return(&types.Member{MemberId: 123, CustomerId: "abc", AccessId: &accessId}, nil).
+					Times(1)
+
+				ua.EXPECT().UpdateMember(gomock.Eq(accessId), gomock.Any()).Times(1)
 			},
 		},
 	} {
@@ -343,6 +369,10 @@ func TestWebhookHandler(t *testing.T) {
 						Name:       "name",
 						Email:      "email",
 					})).
+					Times(1)
+
+				mdb.EXPECT().
+					FindMemberByCustomerId(gomock.Eq("abc")).
 					Times(1)
 			},
 			wantStatusCode: http.StatusOK,

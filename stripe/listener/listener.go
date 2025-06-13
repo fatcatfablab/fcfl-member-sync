@@ -36,6 +36,7 @@ type memberDb interface {
 type uaUpdater interface {
 	AddMember(uaTypes.ComparableMember) (string, error)
 	DisableMember(string, uaTypes.ComparableMember) error
+	UpdateMember(string, uaTypes.ComparableMember) error
 }
 
 type Listener struct {
@@ -127,7 +128,22 @@ func (l *Listener) handleCustomerEvent(rawEvent json.RawMessage, eventType strin
 	}
 
 	log.Printf("%s event: %+v", eventType, c)
-	return l.db.CreateMember(c)
+	if err := l.db.CreateMember(c); err != nil {
+		return fmt.Errorf("error creating member: %w", err)
+	}
+
+	m, err := l.db.FindMemberByCustomerId(c.CustomerId)
+	if err != nil {
+		return fmt.Errorf("couldn't find member after creating it: %w", err)
+	}
+
+	if m != nil && m.AccessId != nil {
+		if err := l.ua.UpdateMember(*m.AccessId, memberToComparableMember(*m)); err != nil {
+			return fmt.Errorf("error updating UA member: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (l *Listener) handleSubscriptionCreated(rawEvent json.RawMessage) error {
